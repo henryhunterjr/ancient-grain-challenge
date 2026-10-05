@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ancient Grain Challenge | Crust &amp; Crumb Academy</title>
+<meta name="description" content="Work through the Ancient Grain series in the Crust & Crumb Academy, earn points, and get a shot at 25 pounds of grain from Grand Teton Ancient Grains.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- After deploy, replace the placeholder domain below with the real site URL -->
+<link rel="canonical" href="https://ancient-grain-challenge.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Crust & Crumb Academy">
+<meta property="og:title" content="The Ancient Grain Challenge">
+<meta property="og:description" content="Finish the Ancient Grain series, earn points, and win grain from Grand Teton Ancient Grains.">
+<meta property="og:url" content="https://ancient-grain-challenge.vercel.app/">
+<meta property="og:image" content="https://ancient-grain-challenge.vercel.app/og-image.jpg">
+<meta property="og:image:alt" content="25 pound giveaway of ancient grain from Grand Teton Ancient Grains">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Ancient Grain Challenge">
+<meta name="twitter:description" content="Finish the Ancient Grain series, earn points, and win grain from Grand Teton Ancient Grains.">
+<meta name="twitter:image" content="https://ancient-grain-challenge.vercel.app/og-image.jpg">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","name":"The Ancient Grain Challenge","description":"Work through the Ancient Grain series in the Crust & Crumb Academy, earn points, and get a shot at 25 pounds of grain from Grand Teton Ancient Grains.","url":"https://ancient-grain-challenge.vercel.app/","about":{"@type":"Event","name":"Ancient Grain Challenge drawing","startDate":"2026-12-01","location":{"@type":"Place","name":"Crust & Crumb Academy"},"organizer":{"@type":"Organization","name":"Crust & Crumb Academy"}}}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap stack">
+    <p class="eyebrow">Crust &amp; Crumb Academy · with Grand Teton Ancient Grains</p>
+    <h1>The Ancient Grain <em>Challenge</em></h1>
+    <p class="lede">Work through our Ancient Grain series, bake with what you learn, and earn your way into the drawing for real grain from Grand Teton Ancient Grains.</p>
+    <img class="hero-img" src="og-image.jpg" alt="25 pounds of ancient grain from Grand Teton Ancient Grains, the challenge grand prize" fetchpriority="high">
+    <div class="prize-row">
+      <div class="prize"><span class="weight">25<small>lb</small></span><div><strong>Grand prize</strong><br><span class="muted">One 25 lb bag of grain</span></div></div>
+      <div class="prize"><span class="weight">5<small>lb</small></span><div><strong>Runner-up prizes</strong><br><span class="muted">5 lb bags of grain</span></div></div>
+    </div>
+    <div class="counts" aria-live="polite">
+      <span><b id="c-entrants">–</b> bakers registered</span>
+      <span><b id="c-qualified">–</b> qualified so far</span>
+      <span>Entries close in <b id="c-countdown">–</b></span>
+    </div>
+  </div>
+</header>
+
+<section aria-labelledby="how">
+  <div class="wrap stack">
+    <h2 id="how">How it works</h2>
+    <ol class="steps">
+      <li><div><strong>Register below.</strong> <span class="muted">It takes a minute. You need to be a member of the Crust &amp; Crumb Academy, and it's free to join.</span></div></li>
+      <li><div><strong>Finish every module in the Ancient Grain series.</strong> <span class="muted">That's what qualifies you for the drawing. Mark each one complete in the Academy classroom, then check it off here.</span></div></li>
+      <li><div><strong>Earn bonus points.</strong> <span class="muted">Take the quiz, bake with ancient grains, mill your own flour, and join a Saturday Bake Along. Every verified point is one entry in the drawing.</span></div></li>
+    </ol>
+  </div>
+</section>
+
+<section aria-labelledby="me">
+  <div class="wrap stack">
+    <h2 id="me">Your entry</h2>
+    <div id="me-body" class="stack"><p class="muted">Loading…</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="tasks-h">
+  <div class="wrap stack">
+    <h2 id="tasks-h">Ways to earn points</h2>
+    <p class="muted">Modules are required. Everything else is a bonus. When you check something off, it shows as <span class="pill pending">pending</span> until we confirm it, usually within a couple of days.</p>
+    <div id="tasks" class="tasks"><p class="muted" style="padding:16px 0">Loading the list…</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="board-h">
+  <div class="wrap stack">
+    <h2 id="board-h">Leaderboard</h2>
+    <p class="muted">Verified points only. A ✓ means that baker has finished every module and is in the drawing.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Baker</th><th>Qualified</th><th class="num">Points</th></tr></thead>
+      <tbody id="board"><tr><td colspan="4" class="muted">No one's on the board yet. Register and be the first.</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+
+<section aria-labelledby="share-h">
+  <div class="wrap stack">
+    <h2 id="share-h">Tell a baker</h2>
+    <p class="muted">Know someone who mills, or wants to? Send them the challenge. More bakers in the drawing means a bigger celebration for ancient grain.</p>
+    <div class="bar" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button type="button" id="share-copy">Copy the challenge link</button>
+      <span id="share-msg" class="msg" role="status"></span>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="rules-h" id="rules">
+  <div class="wrap stack">
+    <h2 id="rules-h">Official rules</h2>
+    <div>
+      <details><summary>Who can enter</summary><div>
+        <ul>
+          <li>You must be 18 or older and a member of the Crust &amp; Crumb Academy on Skool. Membership is free.</li>
+          <li>Open to residents of the United States and Canada. Void where prohibited.</li>
+          <li>One registration per person. Duplicate registrations will be removed.</li>
+          <li>Henry Hunter's household and employees of Grand Teton Ancient Grains aren't eligible.</li>
+        </ul>
+      </div></details>
+      <details><summary>Dates</summary><div>
+        <ul>
+          <li>The challenge opens October 5, 2026.</li>
+          <li>Registration and task check-offs close Sunday, November 29, 2026 at 11:59 pm Eastern.</li>
+          <li>Winners are drawn on Tuesday, December 1, 2026, live in the Academy.</li>
+        </ul>
+      </div></details>
+      <details><summary>How to qualify and how entries work</summary><div>
+        <ul>
+          <li>To qualify, you must complete every module in the Ancient Grain series that's published in the Academy classroom by November 29. If we add a module during the challenge, it's added to the list here.</li>
+          <li>Every verified point is one entry. More points mean better odds, but any qualified baker can win.</li>
+          <li>We confirm module progress in the Academy classroom and check the links you send for bonus tasks. A check-off we can't confirm doesn't count.</li>
+          <li>Claiming tasks you didn't do will get you removed from the challenge.</li>
+        </ul>
+      </div></details>
+      <details><summary>Prizes and the drawing</summary><div>
+        <ul>
+          <li>Grand prize: one 25 lb bag of grain from Grand Teton Ancient Grains, shipped to the winner.</li>
+          <li>Runner-up prizes: 5 lb bags of grain from Grand Teton Ancient Grains. We'll post the final number of bags before the drawing.</li>
+          <li>The grand prize is drawn first. Runner-up prizes are drawn after that. No one can win twice.</li>
+          <li>Winners are announced in the Academy and contacted by email. If we don't hear back within 7 days, we draw a new winner.</li>
+          <li>Canadian winners must correctly answer a skill-testing question before receiving a prize.</li>
+          <li>Prizes can't be exchanged for cash.</li>
+        </ul>
+      </div></details>
+      <details><summary>No purchase necessary</summary><div>
+        <p>You don't have to buy anything to enter or to win. The Academy is free, and buying anything from Grand Teton Ancient Grains or any other partner doesn't improve your chances.</p>
+      </div></details>
+      <details><summary>Your information</summary><div>
+        <p>We use what you enter here to run the challenge and, if you opt in, to send you the weekly Ancient Grain newsletter. We share a winner's name and shipping details with Grand Teton Ancient Grains only to ship the prize. This challenge isn't sponsored or run by Skool or Facebook.</p>
+      </div></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap stack">
+    <p>Run by Henry Hunter and the Crust &amp; Crumb Academy. Grain provided by <a href="https://www.ancientgrains.com" target="_blank" rel="noopener">Grand Teton Ancient Grains</a>.</p>
+    <p class="muted">Questions? Ask in the Academy or email henrysbreadkitchen@gmail.com.</p>
+  </div>
+</footer>
+
+<script src="shared.js"></script>
+<script>
+(() => {
+  const { rpc, store, el } = AGC;
+  const TOKEN_KEY = "agc_token";
+  let tasks = [], progress = null;
+
+  const meBody = document.getElementById("me-body");
+  const tasksBox = document.getElementById("tasks");
+
+  async function loadStats() {
+    try {
+      const s = await rpc("stats");
+      document.getElementById("c-entrants").textContent = s.entrants;
+      document.getElementById("c-qualified").textContent = s.qualified;
+    } catch {}
+  }
+
+  async function loadBoard() {
+    const body = document.getElementById("board");
+    try {
+      const rows = await rpc("leaderboard");
+      if (!rows.length) return;
+      body.replaceChildren(...rows.map((r, i) => el("tr", {},
+        el("td", { text: String(i + 1) }),
+        el("td", { text: r.name }),
+        el("td", { text: r.qualified ? "✓" : "" }),
+        el("td", { class: "num", text: String(r.points) }))));
+    } catch {
+      body.replaceChildren(el("tr", {}, el("td", { colspan: "4", class: "muted", text: "Couldn't load the leaderboard. Refresh to try again." })));
+    }
+  }
+
+  async function loadProgress() {
+    const token = store.get(TOKEN_KEY);
+    if (!token) { progress = null; return; }
+    try {
+      progress = await rpc("my_progress", { p_token: token });
+      if (!progress) { store.del(TOKEN_KEY); }
+    } catch { progress = null; }
+  }
+
+  function renderMe() {
+    if (!progress) { renderRegister(); return; }
+    const p = progress;
+    const pct = p.modules_total ? Math.round(100 * p.modules_verified / p.modules_total) : 0;
+    meBody.replaceChildren(el("div", { class: "card stack" },
+      el("h3", { text: `Welcome back, ${p.first_name}.` }),
+      el("div", { class: "status-line" },
+        el("span", { class: "big", text: String(p.verified_points) }),
+        el("span", { class: "muted", text: `verified points` }),
+        p.pending_points ? el("span", { class: "pill pending", text: `${p.pending_points} pending` }) : null),
+      el("div", { class: "stack", style: "gap:6px" },
+        el("p", {}, el("strong", { text: `Modules: ${p.modules_verified} of ${p.modules_total} verified` })),
+        el("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct) }, el("span", { style: `width:${pct}%` })),
+        el("p", { class: p.qualified ? "msg ok" : "muted", text: p.qualified
+          ? "You're qualified for the drawing. Keep earning points for more entries."
+          : "Finish every module to qualify for the drawing." })),
+      el("div", { class: "stack", style: "gap:6px" },
+        el("p", { class: "muted", text: "Your entry code. Save it so you can pick up on another phone or computer:" }),
+        el("div", { class: "code", text: store.get(TOKEN_KEY) || "" })),
+      el("div", {}, el("button", { class: "ghost small", type: "button", onclick: () => { store.del(TOKEN_KEY); progress = null; renderAll(); } }, "Not you? Sign out on this device"))
+    ));
+  }
+
+  function renderRegister() {
+    const msg = el("p", { class: "msg", role: "status" });
+    const f = el("form", { novalidate: true },
+      el("div", { class: "grid2" },
+        el("label", { for: "r-name" }, "Full name", el("input", { id: "r-name", name: "name", autocomplete: "name", required: true })),
+        el("label", { for: "r-email" }, "Email", el("input", { id: "r-email", name: "email", type: "email", autocomplete: "email", required: true }))),
+      el("div", { class: "grid2" },
+        el("label", { for: "r-skool" }, el("span", {}, "Your name on Skool ", el("span", { class: "hint", text: "(so we can find your classroom progress)" })), el("input", { id: "r-skool", name: "skool", required: true })),
+        el("label", { for: "r-country" }, "Country",
+          el("select", { id: "r-country", name: "country", required: true },
+            el("option", { value: "" , text: "Choose one" }), el("option", { text: "United States" }), el("option", { text: "Canada" })))),
+      el("div", { class: "grid2" },
+        el("label", { for: "r-region" }, "State or province", el("input", { id: "r-region", name: "region", autocomplete: "address-level1" })),
+        el("label", { for: "r-mill" }, "Do you mill your own flour?",
+          el("select", { id: "r-mill", name: "mill" },
+            el("option", { value: "", text: "Choose one" }),
+            el("option", { text: "Yes, I have a mill" }), el("option", { text: "Not yet, but I want to" }), el("option", { text: "No, I buy flour" })))),
+      el("label", { for: "r-exp" }, "How long have you been baking bread?",
+        el("select", { id: "r-exp", name: "exp" },
+          el("option", { value: "", text: "Choose one" }), el("option", { text: "Just getting started" }), el("option", { text: "1 to 3 years" }), el("option", { text: "3 to 10 years" }), el("option", { text: "More than 10 years" }))),
+      el("label", { class: "check", for: "r-news" }, el("input", { id: "r-news", type: "checkbox", checked: true }), el("span", { text: "Send me the weekly Ancient Grain newsletter with new lessons and videos." })),
+      el("label", { class: "check", for: "r-rules" }, el("input", { id: "r-rules", type: "checkbox", required: true }), el("span", {}, "I'm 18 or older, I live in the US or Canada, and I agree to the ", el("a", { href: "#rules" }, "official rules"), ".")),
+      el("div", {}, el("button", { type: "submit", id: "r-submit" }, "Register for the challenge")),
+      msg);
+
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const v = (id) => document.getElementById(id).value.trim();
+      if (!v("r-name") || !v("r-email") || !v("r-skool") || !v("r-country")) { msg.className = "msg err"; msg.textContent = "Fill in your name, email, Skool name, and country."; return; }
+      if (!document.getElementById("r-rules").checked) { msg.className = "msg err"; msg.textContent = "Check the box to agree to the rules."; return; }
+      const btn = document.getElementById("r-submit"); btn.disabled = true; msg.className = "msg"; msg.textContent = "Registering…";
+      try {
+        const r = await rpc("register", {
+          p_email: v("r-email"), p_full_name: v("r-name"), p_skool_name: v("r-skool"), p_country: v("r-country"), p_region: v("r-region"),
+          p_mill_status: v("r-mill"), p_experience: v("r-exp"), p_newsletter: document.getElementById("r-news").checked, p_rules_accepted: true });
+        if (r.error) {
+          msg.className = "msg err";
+          msg.textContent = ({ exists: "That email is already registered. Use \"Already registered?\" below to get back in.", email: "That email doesn't look right. Check it and try again.", name: "Enter your full name and your Skool name.", rules: "Check the box to agree to the rules." })[r.error] || "Something went wrong. Try again.";
+          btn.disabled = false; return;
+        }
+        store.set(TOKEN_KEY, r.token);
+        await renderAll();
+        document.getElementById("me").scrollIntoView({ behavior: "smooth" });
+      } catch (err) { msg.className = "msg err"; msg.textContent = "We couldn't reach the server. Check your connection and try again."; btn.disabled = false; }
+    });
+
+    const rmsg = el("p", { class: "msg", role: "status" });
+    const rec = el("form", { novalidate: true },
+      el("p", { class: "muted", text: "Enter the email and Skool name you registered with, or paste your entry code." }),
+      el("div", { class: "grid2" },
+        el("label", { for: "x-email" }, "Email", el("input", { id: "x-email", type: "email", autocomplete: "email" })),
+        el("label", { for: "x-skool" }, "Skool name", el("input", { id: "x-skool" }))),
+      el("label", { for: "x-code" }, el("span", {}, "Or your entry code ", el("span", { class: "hint", text: "(optional)" })), el("input", { id: "x-code", autocomplete: "off" })),
+      el("div", {}, el("button", { type: "submit", class: "ghost" }, "Find my entry")), rmsg);
+    rec.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const code = document.getElementById("x-code").value.trim();
+      rmsg.className = "msg"; rmsg.textContent = "Looking…";
+      try {
+        let token = null;
+        if (code) {
+          const p = /^[0-9a-f-]{36}$/i.test(code) ? await rpc("my_progress", { p_token: code }) : null;
+          if (p) token = code;
+        } else {
+          const r = await rpc("recover", { p_email: document.getElementById("x-email").value, p_skool_name: document.getElementById("x-skool").value });
+          if (r.token) token = r.token;
+        }
+        if (!token) { rmsg.className = "msg err"; rmsg.textContent = "We couldn't find that entry. Check the spelling of your email and Skool name."; return; }
+        store.set(TOKEN_KEY, token); await renderAll();
+      } catch { rmsg.className = "msg err"; rmsg.textContent = "We couldn't reach the server. Try again."; }
+    });
+
+    meBody.replaceChildren(
+      el("div", { class: "card" }, f),
+      el("details", {}, el("summary", { text: "Already registered?" }), el("div", {}, rec)));
+  }
+
+  function renderTasks() {
+    if (!tasks.length) { tasksBox.replaceChildren(el("p", { class: "muted", style: "padding:16px 0", text: "The task list is on its way." })); return; }
+    const claims = Object.fromEntries((progress?.claims || []).map(c => [c.task_key, c]));
+    tasksBox.replaceChildren(...tasks.map(t => {
+      const c = claims[t.key];
+      const proofId = "p-" + t.key;
+      const msg = el("span", { class: "msg", role: "status" });
+      let actions;
+      if (!progress) {
+        actions = el("div", { class: "task-actions" }, el("span", { class: "muted", text: "Register to check this off." }));
+      } else if (c && c.status === "verified") {
+        actions = el("div", { class: "task-actions" }, el("span", { class: "pill verified", text: "Verified" }));
+      } else {
+        const isModule = t.category === "module";
+        const input = isModule
+          ? el("span", { class: "muted", style: "flex:1 1 220px", text: "Mark it complete in the classroom first. We'll confirm it there." })
+          : el("input", { id: proofId, placeholder: t.proof_hint || "Add a note or link", value: c?.proof || "", "aria-label": "Proof for " + t.title });
+        const btn = el("button", { type: "button", class: c ? "ghost small" : "small" }, c ? "Update" : (t.category === "module" ? "I finished this" : "I did this"));
+        btn.addEventListener("click", async () => {
+          btn.disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
+          try {
+            const r = await rpc("claim_task", { p_token: store.get(TOKEN_KEY), p_task_key: t.key, p_proof: isModule ? "" : input.value.trim() });
+            if (r.error) throw new Error(r.error);
+            await loadProgress(); renderMe(); renderTasks();
+          } catch { msg.className = "msg err"; msg.textContent = "Couldn't save that. Try again."; btn.disabled = false; }
+        });
+        actions = el("div", { class: "task-actions" },
+          c ? el("span", { class: "pill " + c.status, text: c.status === "rejected" ? "Not confirmed" : "Pending" }) : null,
+          input, btn, msg);
+      }
+      return el("div", { class: "task" },
+        el("div", { class: "task-main" },
+          el("div", {}, t.category === "module" ? el("span", { class: "pill req", text: "Required" }) : null),
+          el("h3", { text: t.title }),
+          el("p", { class: "muted", text: t.description }),
+          t.link ? el("a", { href: t.link, target: "_blank", rel: "noopener", text: "Open it" }) : null),
+        el("div", { class: "task-pts", text: `${t.points} pts` }),
+        actions);
+    }));
+  }
+
+  async function renderAll() {
+    await loadProgress();
+    renderMe(); renderTasks();
+  }
+
+  (async () => {
+    try { tasks = await rpc("get_tasks"); } catch { tasks = []; }
+    await renderAll();
+    loadStats(); loadBoard();
+  })();
+
+  // Live countdown to entries closing: Nov 29, 2026 11:59 pm Eastern
+  (() => {
+    const closeAt = new Date("2026-11-29T23:59:59-05:00").getTime();
+    const node = document.getElementById("c-countdown");
+    if (!node) return;
+    const pad = n => String(n).padStart(2, "0");
+    function tick() {
+      const ms = closeAt - Date.now();
+      if (ms <= 0) { node.textContent = "entries are closed"; return; }
+      const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60;
+      node.textContent = `${d}d ${pad(h)}h ${pad(m)}m ${pad(s)}s`;
+    }
+    tick(); setInterval(tick, 1000);
+  })();
+
+  // Copy-link share button
+  (() => {
+    const btn = document.getElementById("share-copy"), msg = document.getElementById("share-msg");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const url = location.href.split("#")[0];
+      try { await navigator.clipboard.writeText(url); }
+      catch {
+        const ta = document.createElement("textarea");
+        ta.value = url; document.body.append(ta); ta.select();
+        try { document.execCommand("copy"); } catch {}
+        ta.remove();
+      }
+      msg.className = "msg ok"; msg.textContent = "Link copied. Go recruit a baker.";
+      setTimeout(() => { msg.textContent = ""; }, 4000);
+    });
+  })();
+})();
+</script>
+</body>
+</html>

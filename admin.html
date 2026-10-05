@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Challenge Host Desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .wide { max-width: 1100px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .tile b { display: block; font: 700 1.8rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
+  .queue-item { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .queue-item .proof { word-break: break-word; }
+  td small { color: var(--muted); }
+  .winner { border-left: 4px solid var(--accent); }
+</style>
+</head>
+<body>
+<header class="hero" style="padding-block:36px 24px">
+  <div class="wrap wide stack">
+    <p class="eyebrow">Ancient Grain Challenge</p>
+    <h1 style="font-size:clamp(2rem,6vw,2.8rem)">Host Desk</h1>
+    <form id="login" class="bar" novalidate>
+      <label for="key" style="flex:1 1 260px">Passcode <input id="key" type="password" autocomplete="current-password"></label>
+      <button type="submit" style="align-self:end">Open</button>
+      <p id="login-msg" class="msg" role="status" style="flex-basis:100%"></p>
+    </form>
+  </div>
+</header>
+
+<main id="app" hidden>
+  <section style="border-top:0;padding-top:0">
+    <div class="wrap wide stack">
+      <div class="tiles" id="tiles"></div>
+      <div class="bar">
+        <button type="button" id="refresh" class="ghost small">Refresh</button>
+        <button type="button" id="csv" class="ghost small">Download entrants (CSV)</button>
+        <button type="button" id="logout" class="ghost small">Lock</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap wide stack">
+      <h2>Waiting for review</h2>
+      <p class="muted">Check module claims against the member's progress in the Academy classroom. Open links for bonus claims.</p>
+      <div id="queue"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap wide stack">
+      <h2>All entrants</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Baker</th><th>Skool name</th><th>Where</th><th>Modules</th><th class="num">Verified</th><th class="num">Pending</th><th>Status</th></tr></thead>
+        <tbody id="entrants"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap wide stack">
+      <h2>The drawing</h2>
+      <p class="muted">Only qualified bakers who haven't already won are in the pool. Each verified point is one entry. Draw the grand prize first. Every draw is saved and can't be undone, so do this live on December 1.</p>
+      <div class="bar">
+        <label for="prize" style="flex:1 1 240px">Prize <select id="prize"><option>Grand prize: 25 lb bag</option><option>Runner-up: 5 lb bag</option></select></label>
+        <button type="button" id="draw-arm" style="align-self:end">Draw a winner</button>
+        <button type="button" id="draw-go" hidden style="align-self:end">Yes, draw now</button>
+        <button type="button" id="draw-cancel" class="ghost" hidden style="align-self:end">Cancel</button>
+      </div>
+      <p id="draw-msg" class="msg" role="status"></p>
+      <div id="draws" class="stack"></div>
+    </div>
+  </section>
+</main>
+
+<script src="shared.js"></script>
+<script>
+(() => {
+  const { rpc, el } = AGC;
+  let key = null, data = null, tasks = [];
+  const ss = { get: k => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} }, del: k => { try { sessionStorage.removeItem(k); } catch {} } };
+  const taskTitle = k => (tasks.find(t => t.key === k) || {}).title || k;
+  const taskPts = k => (tasks.find(t => t.key === k) || {}).points || 0;
+  const fmt = d => new Date(d).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  async function load() {
+    const r = await rpc("admin_overview", { p_key: key });
+    if (r.error) return false;
+    data = r; return true;
+  }
+
+  function render() {
+    const E = data.entrants;
+    const qualified = E.filter(e => !e.disqualified && e.modules_total > 0 && e.modules_verified >= e.modules_total);
+    const pending = E.flatMap(e => e.claims.filter(c => c.status === "pending").map(c => ({ ...c, e })));
+    document.getElementById("tiles").replaceChildren(
+      ...[["Registered", E.length], ["Qualified", qualified.length], ["Waiting for review", pending.length], ["Newsletter opt-ins", E.filter(e => e.newsletter).length]]
+        .map(([l, n]) => el("div", { class: "tile" }, el("b", { text: String(n) }), el("span", { class: "muted", text: l }))));
+
+    const q = document.getElementById("queue");
+    if (!pending.length) q.replaceChildren(el("p", { class: "muted", text: "Nothing to review. You're caught up." }));
+    else q.replaceChildren(...pending.sort((a, b) => a.claimed_at.localeCompare(b.claimed_at)).map(c => {
+      const proofTxt = c.proof || "(no note)";
+      const proof = /^https?:\/\//i.test(c.proof) ? el("a", { href: c.proof, target: "_blank", rel: "noopener", text: c.proof }) : document.createTextNode(proofTxt);
+      const msg = el("span", { class: "msg", role: "status" });
+      const act = (status) => async (ev) => {
+        ev.target.disabled = true;
+        try { const r = await rpc("admin_review", { p_key: key, p_claim_id: c.id, p_status: status }); if (r.error) throw 0; await refresh(); }
+        catch { msg.className = "msg err"; msg.textContent = "Couldn't save. Try again."; ev.target.disabled = false; }
+      };
+      return el("div", { class: "queue-item" },
+        el("div", { class: "stack", style: "gap:4px;min-width:0" },
+          el("strong", { text: `${c.e.full_name} · ${taskTitle(c.task_key)} (${taskPts(c.task_key)} pts)` }),
+          el("span", { class: "muted", text: `Skool: ${c.e.skool_name} · claimed ${fmt(c.claimed_at)}` }),
+          el("span", { class: "proof" }, proof)),
+        el("div", { class: "bar", style: "align-self:start" },
+          el("button", { type: "button", class: "small", onclick: act("verified") }, "Verify"),
+          el("button", { type: "button", class: "ghost small", onclick: act("rejected") }, "Reject"), msg));
+    }));
+
+    document.getElementById("entrants").replaceChildren(...(E.length ? E.map(e => {
+      const isQ = e.modules_total > 0 && e.modules_verified >= e.modules_total;
+      const btn = el("button", { type: "button", class: "ghost small" }, e.disqualified ? "Reinstate" : "Remove");
+      btn.addEventListener("click", async () => { btn.disabled = true; await rpc("admin_set_disqualified", { p_key: key, p_entrant: e.id, p_value: !e.disqualified }); await refresh(); });
+      return el("tr", {},
+        el("td", {}, el("strong", { text: e.full_name }), el("br"), el("small", { text: e.email })),
+        el("td", { text: e.skool_name }),
+        el("td", {}, document.createTextNode([e.region, e.country].filter(Boolean).join(", ")), el("br"), el("small", { text: e.mill_status })),
+        el("td", { text: `${e.modules_verified} / ${e.modules_total}` }),
+        el("td", { class: "num", text: String(e.verified_points) }),
+        el("td", { class: "num", text: String(e.pending_points) }),
+        el("td", {}, e.disqualified ? el("span", { class: "pill rejected", text: "Removed" }) : isQ ? el("span", { class: "pill verified", text: "Qualified" }) : el("span", { class: "muted", text: "In progress" }), el("br"), btn));
+    }) : [el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No one has registered yet." }))]));
+
+    document.getElementById("draws").replaceChildren(...data.draws.map(d => el("div", { class: "card winner stack", style: "gap:4px" },
+      el("strong", { text: `${d.prize}: ${d.name}` }),
+      el("span", { class: "muted", text: `${d.email} · Skool: ${d.skool_name} · ${d.entries} entries out of a pool of ${d.pool_size} bakers · ${fmt(d.drawn_at)}` }))));
+  }
+
+  async function refresh() { if (await load()) render(); }
+
+  document.getElementById("login").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const m = document.getElementById("login-msg");
+    key = document.getElementById("key").value.trim(); m.className = "msg"; m.textContent = "Checking…";
+    try {
+      if (!(await load())) { m.className = "msg err"; m.textContent = "That passcode didn't work."; return; }
+      ss.set("agc_admin", key); m.textContent = ""; document.getElementById("login").hidden = true; document.getElementById("app").hidden = false; render();
+    } catch { m.className = "msg err"; m.textContent = "Couldn't reach the server."; }
+  });
+  document.getElementById("refresh").onclick = refresh;
+  document.getElementById("logout").onclick = () => { ss.del("agc_admin"); location.reload(); };
+
+  document.getElementById("csv").onclick = () => {
+    const cols = ["full_name", "email", "skool_name", "country", "region", "mill_status", "experience", "newsletter", "modules_verified", "modules_total", "verified_points", "pending_points", "disqualified", "created_at"];
+    const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [cols.join(","), ...data.entrants.map(e => cols.map(c => esc(e[c])).join(","))].join("\n");
+    const a = el("a", { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: "ancient-grain-challenge-entrants.csv" });
+    document.body.append(a); a.click(); a.remove();
+  };
+
+  const arm = document.getElementById("draw-arm"), go = document.getElementById("draw-go"), cancel = document.getElementById("draw-cancel"), dmsg = document.getElementById("draw-msg");
+  arm.onclick = () => { arm.hidden = true; go.hidden = false; cancel.hidden = false; dmsg.className = "msg"; dmsg.textContent = "This saves a winner for good. Draw now?"; };
+  cancel.onclick = () => { arm.hidden = false; go.hidden = true; cancel.hidden = true; dmsg.textContent = ""; };
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const r = await rpc("admin_draw", { p_key: key, p_prize: document.getElementById("prize").value });
+      if (r.error === "empty") { dmsg.className = "msg err"; dmsg.textContent = "No qualified bakers left in the pool."; }
+      else if (r.error) throw 0;
+      else { dmsg.className = "msg ok"; dmsg.textContent = `Winner: ${r.name} (${r.entries} entries out of ${r.pool_size} bakers).`; await refresh(); }
+    } catch { dmsg.className = "msg err"; dmsg.textContent = "The draw didn't go through. Try again."; }
+    go.disabled = false; arm.hidden = false; go.hidden = true; cancel.hidden = true;
+  };
+
+  (async () => {
+    try { tasks = await rpc("get_tasks"); } catch {}
+    const saved = ss.get("agc_admin");
+    if (saved) { document.getElementById("key").value = saved; document.getElementById("login").requestSubmit(); }
+  })();
+})();
+</script>
+</body>
+</html>
