@@ -95,12 +95,15 @@
   }
 
   function render() {
-    const E = data.entrants;
+    const E = data.entrants; const oldT = document.getElementById("grain-tally"); if (oldT) oldT.remove();
     const qualified = E.filter(e => !e.disqualified && e.modules_total > 0 && e.modules_verified >= e.modules_total);
     const pending = E.flatMap(e => e.claims.filter(c => c.status === "pending").map(c => ({ ...c, e })));
     document.getElementById("tiles").replaceChildren(
       ...[["Registered", E.length], ["Qualified", qualified.length], ["Waiting for review", pending.length], ["Newsletter opt-ins", E.filter(e => e.newsletter).length]]
         .map(([l, n]) => el("div", { class: "tile" }, el("b", { text: String(n) }), el("span", { class: "muted", text: l }))));
+    const tally = {}; E.filter(e => !e.disqualified && e.preferred_grain).forEach(e => { tally[e.preferred_grain] = (tally[e.preferred_grain] || 0) + 1; });
+    const gt = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g}: ${n}`).join(" · ");
+    document.getElementById("tiles").after(Object.assign(document.createElement("p"), { className: "muted", textContent: "Grain picks: " + (gt || "none yet"), id: "grain-tally" }));
 
     const q = document.getElementById("queue");
     if (!pending.length) q.replaceChildren(el("p", { class: "muted", text: "Nothing to review. You're caught up." }));
@@ -130,7 +133,7 @@
       return el("tr", {},
         el("td", {}, el("strong", { text: e.full_name }), el("br"), el("small", { text: e.email })),
         el("td", { text: e.skool_name }),
-        el("td", {}, document.createTextNode([e.region, e.country].filter(Boolean).join(", ")), el("br"), el("small", { text: e.mill_status })),
+        el("td", {}, document.createTextNode([e.region, e.country].filter(Boolean).join(", ")), el("br"), el("small", { text: [e.mill_status, e.preferred_grain && ("Grain: " + e.preferred_grain)].filter(Boolean).join(" · ") })),
         el("td", { text: `${e.modules_verified} / ${e.modules_total}` }),
         el("td", { class: "num", text: String(e.verified_points) }),
         el("td", { class: "num", text: String(e.pending_points) }),
@@ -138,7 +141,7 @@
     }) : [el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No one has registered yet." }))]));
 
     document.getElementById("draws").replaceChildren(...data.draws.map(d => el("div", { class: "card winner stack", style: "gap:4px" },
-      el("strong", { text: `${d.prize}: ${d.name}` }),
+      el("strong", { text: `${d.prize}: ${d.name} (${d.preferred_grain || "no grain chosen"})` }),
       el("span", { class: "muted", text: `${d.email} · Skool: ${d.skool_name} · ${d.entries} entries out of a pool of ${d.pool_size} bakers · ${fmt(d.drawn_at)}` }))));
   }
 
@@ -157,7 +160,7 @@
   document.getElementById("logout").onclick = () => { ss.del("agc_admin"); location.reload(); };
 
   document.getElementById("csv").onclick = () => {
-    const cols = ["full_name", "email", "skool_name", "country", "region", "mill_status", "experience", "newsletter", "modules_verified", "modules_total", "verified_points", "pending_points", "disqualified", "created_at"];
+    const cols = ["full_name", "email", "skool_name", "country", "region", "mill_status", "experience", "preferred_grain", "newsletter", "modules_verified", "modules_total", "verified_points", "pending_points", "disqualified", "created_at"];
     const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv = [cols.join(","), ...data.entrants.map(e => cols.map(c => esc(e[c])).join(","))].join("\n");
     const a = el("a", { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: "ancient-grain-challenge-entrants.csv" });
