@@ -56,7 +56,7 @@
     <div class="wrap wide stack">
       <h2>All entrants</h2>
       <div class="table-wrap"><table>
-        <thead><tr><th>Baker</th><th>Skool name</th><th>Where</th><th>Modules</th><th class="num">Verified</th><th class="num">Pending</th><th>Status</th></tr></thead>
+        <thead><tr><th>Baker</th><th>Joining from</th><th>Where</th><th>Modules</th><th class="num">Verified</th><th class="num">Pending</th><th>Status</th></tr></thead>
         <tbody id="entrants"></tbody>
       </table></div>
     </div>
@@ -119,7 +119,7 @@
       return el("div", { class: "queue-item" },
         el("div", { class: "stack", style: "gap:4px;min-width:0" },
           el("strong", { text: `${c.e.full_name} · ${taskTitle(c.task_key)} (${taskPts(c.task_key)} pts)` }),
-          el("span", { class: "muted", text: `Skool: ${c.e.skool_name} · claimed ${fmt(c.claimed_at)}` }),
+          el("span", { class: "muted", text: `From: ${c.e.skool_name} · claimed ${fmt(c.claimed_at)}` }),
           el("span", { class: "proof" }, proof)),
         el("div", { class: "bar", style: "align-self:start" },
           el("button", { type: "button", class: "small", onclick: act("verified") }, "Verify"),
@@ -142,7 +142,7 @@
 
     document.getElementById("draws").replaceChildren(...data.draws.map(d => el("div", { class: "card winner stack", style: "gap:4px" },
       el("strong", { text: `${d.prize}: ${d.name} (${d.preferred_grain || "no grain chosen"})` }),
-      el("span", { class: "muted", text: `${d.email} · Skool: ${d.skool_name} · ${d.entries} entries out of a pool of ${d.pool_size} bakers · ${fmt(d.drawn_at)}` }))));
+      el("span", { class: "muted", text: `${d.email} · From: ${d.skool_name} · ${d.entries} entries out of a pool of ${d.pool_size} bakers · ${fmt(d.drawn_at)}` }))));
   }
 
   async function refresh() { if (await load()) render(); }
