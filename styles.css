@@ -115,3 +115,6 @@ details ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
 footer { padding-block: 36px 56px; font-size: .88rem; border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.site-banner{background:#000;line-height:0}
+.site-banner img{display:block;width:100%;max-width:1600px;height:auto;margin:0 auto}
