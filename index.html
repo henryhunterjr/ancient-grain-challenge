@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ancient Grain Challenge | Crust &amp; Crumb Academy</title>
-<meta name="description" content="Work through the Ancient Grain series in the Crust & Crumb Academy, earn points, and get a shot at 175 pounds of grain from Grand Teton Ancient Grains, including a 25 lb grand prize and thirty 5 lb bags.">
+<meta name="description" content="Watch the Ancient Grain lessons, take the quizzes, earn points, and get a shot at 175 pounds of grain from Grand Teton Ancient Grains, including a 25 lb grand prize and thirty 5 lb bags.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <!-- After deploy, replace the placeholder domain below with the real site URL -->
 <link rel="canonical" href="https://challenge.bakinggreatbread.com/">
@@ -20,7 +20,7 @@
 <meta name="twitter:description" content="Finish the Ancient Grain series, earn points, and win a 25 lb grand prize or one of thirty 5 lb bags of grain from Grand Teton Ancient Grains.">
 <meta name="twitter:image" content="https://challenge.bakinggreatbread.com/og-image.jpg">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","name":"The Ancient Grain Challenge","description":"Work through the Ancient Grain series in the Crust & Crumb Academy, earn points, and get a shot at 175 pounds of grain from Grand Teton Ancient Grains, including a 25 lb grand prize and thirty 5 lb bags.","url":"https://challenge.bakinggreatbread.com/","about":{"@type":"Event","name":"Ancient Grain Challenge drawing","startDate":"2026-12-01","location":{"@type":"Place","name":"Crust & Crumb Academy"},"organizer":{"@type":"Organization","name":"Crust & Crumb Academy"}}}
+{"@context":"https://schema.org","@type":"WebPage","name":"The Ancient Grain Challenge","description":"Watch the Ancient Grain lessons, take the quizzes, earn points, and get a shot at 175 pounds of grain from Grand Teton Ancient Grains, including a 25 lb grand prize and thirty 5 lb bags.","url":"https://challenge.bakinggreatbread.com/","about":{"@type":"Event","name":"Ancient Grain Challenge drawing","startDate":"2026-12-01","location":{"@type":"Place","name":"Crust & Crumb Academy"},"organizer":{"@type":"Organization","name":"Crust & Crumb Academy"}}}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -51,8 +51,8 @@
   <div class="wrap stack">
     <h2 id="how">How it works</h2>
     <ol class="steps">
-      <li><div><strong>Register below.</strong> <span class="muted">It takes a minute. You need to be a member of the Crust &amp; Crumb Academy, and it's free to join.</span></div></li>
-      <li><div><strong>Finish every module in the Ancient Grain series.</strong> <span class="muted">That's what qualifies you for the drawing. Mark each one complete in the Academy classroom, then check it off here.</span></div></li>
+      <li><div><strong>Register below.</strong> <span class="muted">It takes a minute. Tell us where you're joining from and you're in.</span></div></li>
+      <li><div><strong>Finish every module in the Ancient Grain series.</strong> <span class="muted">Watch each lesson right here on this page, take the quiz, and check it off. That's what qualifies you for the drawing.</span></div></li>
       <li><div><strong>Earn bonus points.</strong> <span class="muted">Take the quiz, bake with ancient grains, mill your own flour, and join a Saturday Bake Along. Every verified point is one entry in the drawing.</span></div></li>
     </ol>
   </div>
@@ -101,7 +101,7 @@
     <div>
       <details><summary>Who can enter</summary><div>
         <ul>
-          <li>You must be 18 or older. To qualify, you complete the Ancient Grain lessons in the Crust &amp; Crumb Academy classroom, so you'll need an Academy account on Skool.</li>
+          <li>You must be 18 or older. To qualify, you complete every Ancient Grain lesson on this page: watch the video and pass the quiz at 70% or better.</li>
           <li>Open to residents of the United States and Canada. Void where prohibited.</li>
           <li>One registration per person. Duplicate registrations will be removed.</li>
           <li>Henry Hunter's household and employees of Grand Teton Ancient Grains aren't eligible.</li>
@@ -116,9 +116,9 @@
       </div></details>
       <details><summary>How to qualify and how entries work</summary><div>
         <ul>
-          <li>To qualify, you must complete every module in the Ancient Grain series that's published in the Academy classroom by November 29. If we add a module during the challenge, it's added to the list here.</li>
+          <li>To qualify, you must complete every lesson listed on this page by November 29. If we add a module during the challenge, it's added to the list here.</li>
           <li>Every verified point is one entry. More points mean better odds, but any qualified baker can win.</li>
-          <li>We confirm module progress in the Academy classroom and check the links you send for bonus tasks. A check-off we can't confirm doesn't count.</li>
+          <li>Lesson check-offs run on the honor system, and we verify the entries that get drawn, including quiz scores. We also check the links you send for bonus tasks. A check-off we can't confirm doesn't count.</li>
           <li>Claiming tasks you didn't do will get you removed from the challenge.</li>
         </ul>
       </div></details>
@@ -317,6 +317,38 @@
       el("details", {}, el("summary", { text: "Already registered?" }), el("div", {}, rec)));
   }
 
+  // Lessons: YouTube IDs and muse.ai quiz links, keyed by module task key. Add quiz links here as they're ready.
+  const LESSONS = {
+    m3: { videos: ["smiOhsBluSY"], quiz: "https://muse.ai/s/from-berries-to-bread-module-one-kj65x0xbgxctgu" },
+    m7: { videos: [], quiz: "https://muse.ai/s/rye-redefined-quiz-lxm6dxqxlxxkxoxkn" },
+    m1: { videos: ["QoGpW6hXxz8"], quiz: null },
+    m2: { videos: ["1GGZgB2TMgY"], quiz: null },
+    m4: { videos: ["xWSZYfOUkrw"], quiz: null },
+    m6: { videos: ["30SLfbm1fZk"], quiz: null },
+    m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quiz: null }
+  };
+
+  function lessonBlock(key) {
+    const L = LESSONS[key];
+    if (!L) return null;
+    const nodes = L.videos.map((id, i) => {
+      const box = el("div", { class: "video" });
+      const b = el("button", { type: "button", class: "video-play", "aria-label": "Play lesson video " + (i + 1) },
+        el("img", { src: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg", alt: "", loading: "lazy" }),
+        el("span", { class: "play-icon", "aria-hidden": "true", text: "\u25B6" }));
+      b.addEventListener("click", () => {
+        box.replaceChildren(el("iframe", { src: "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0", title: "Lesson video", allow: "accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "true", loading: "lazy" }));
+      });
+      box.append(b);
+      return box;
+    });
+    if (!L.videos.length) nodes.push(el("p", { class: "muted small-note", text: "The video for this lesson is on its way. You can take the quiz now." }));
+    nodes.push(L.quiz
+      ? el("a", { class: "btn-link", href: L.quiz, target: "_blank", rel: "noopener", text: "Take the quiz (pass at 70%)" })
+      : el("p", { class: "muted small-note", text: "Quiz coming soon. Watch the video, then check this one off." }));
+    return el("div", { class: "lesson" }, ...nodes);
+  }
+
   function renderTasks() {
     if (!tasks.length) { tasksBox.replaceChildren(el("p", { class: "muted", style: "padding:16px 0", text: "The task list is on its way." })); return; }
     const claims = Object.fromEntries((progress?.claims || []).map(c => [c.task_key, c]));
@@ -332,13 +364,13 @@
       } else {
         const isModule = t.category === "module";
         const input = isModule
-          ? el("span", { class: "muted", style: "flex:1 1 220px", text: "Mark it complete in the classroom first. We'll confirm it there." })
+          ? el("input", { id: proofId, placeholder: t.proof_hint || "Your quiz score, like 8 of 10", value: c?.proof || "", "aria-label": "Quiz score for " + t.title })
           : el("input", { id: proofId, placeholder: t.proof_hint || "Add a note or link", value: c?.proof || "", "aria-label": "Proof for " + t.title });
         const btn = el("button", { type: "button", class: c ? "ghost small" : "small" }, c ? "Update" : (t.category === "module" ? "I finished this" : "I did this"));
         btn.addEventListener("click", async () => {
           btn.disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
           try {
-            const r = await rpc("claim_task", { p_token: store.get(TOKEN_KEY), p_task_key: t.key, p_proof: isModule ? "" : input.value.trim() });
+            const r = await rpc("claim_task", { p_token: store.get(TOKEN_KEY), p_task_key: t.key, p_proof: input.value.trim() });
             if (r.error) throw new Error(r.error);
             await loadProgress(); renderMe(); renderTasks();
           } catch { msg.className = "msg err"; msg.textContent = "Couldn't save that. Try again."; btn.disabled = false; }
@@ -352,6 +384,7 @@
           el("div", {}, t.category === "module" ? el("span", { class: "pill req", text: "Required" }) : null),
           el("h3", { text: t.title }),
           el("p", { class: "muted", text: t.description }),
+          t.category === "module" ? lessonBlock(t.key) : null,
           t.link ? el("a", { href: t.link, target: "_blank", rel: "noopener", text: "Open it" }) : null),
         el("div", { class: "task-pts", text: `${t.points} pts` }),
         actions);
