@@ -9,7 +9,11 @@ begin
     ('claim_task(uuid,text,text)', 'b831ff681df092953a0e0c260cc8d88b'),
     ('my_progress(uuid)', '289c9e1065927b9f8bf3f8f04ef4a4c6'),
     ('admin_review(text,uuid,text)', 'af62a97f214e4a98ef00020ba05cbc18'),
-    ('admin_overview(text)', '545bd6b003020a2c1468cde2a144c46d')
+    ('admin_overview(text)', '545bd6b003020a2c1468cde2a144c46d'),
+    ('admin_draw(text,text,text,text)', '6884b557c890fd3ef64fe718ebd95304'),
+    ('admin_draw(text,text)', 'a037f439e55eab3a577f287852ca03fe'),
+    ('leaderboard()', '5a86e65dedc6a4d97f72a565630d9b76'),
+    ('stats()', '281319cbe5a9819d7b750ca9876e642d')
   ) as expected(signature, hash) loop
     if md5(pg_get_functiondef(('public.' || item.signature)::regprocedure)) <> item.hash then
       raise exception 'Live function changed: %. Reinspect before applying.', item.signature;
@@ -19,6 +23,10 @@ begin
     raise exception 'Live scoring view changed. Reinspect before applying.';
   end if;
 end $$;
+
+-- Explicit designation only. Existing entries default to false; no names,
+-- email patterns or score values automatically designate anyone as a test.
+alter table public.entrants add column is_test boolean not null default false;
 
 -- The existing proof format is retained. Fractions are accepted ONLY when reading
 -- historical claims; new submissions must contain a numeric percentage.
@@ -86,7 +94,8 @@ select json_build_object(
   'first_name',split_part(e.full_name,' ',1),
   'verified_points',s.verified_points,'pending_points',s.pending_points,
   'modules_total',s.modules_total,'modules_verified',s.modules_verified,
-  'qualified',not e.disqualified and s.modules_total>0 and s.modules_verified>=s.modules_total,
+  'is_test',e.is_test,
+  'qualified',not e.disqualified and not e.is_test and s.modules_total>0 and s.modules_verified>=s.modules_total,
   'claims',coalesce((select json_agg(json_build_object(
     'task_key',c.task_key,
     'status',case when t.category='module' and c.status='verified' and coalesce(public._lesson_percentage(c.proof),0)<70 then 'pending' else c.status end,
@@ -119,7 +128,7 @@ begin
   return json_build_object(
     'entrants', coalesce((select json_agg(json_build_object(
         'id',e.id,'full_name',e.full_name,'email',e.email,'skool_name',e.skool_name,'country',e.country,'region',e.region,
-        'mill_status',e.mill_status,'experience',e.experience,'newsletter',e.newsletter,'disqualified',e.disqualified,'preferred_grain',e.preferred_grain,
+        'mill_status',e.mill_status,'experience',e.experience,'newsletter',e.newsletter,'disqualified',e.disqualified,'is_test',e.is_test,'preferred_grain',e.preferred_grain,
         'created_at',e.created_at,'verified_points',s.verified_points,'pending_points',s.pending_points,
         'modules_verified',s.modules_verified,'modules_total',s.modules_total,
         'claims', coalesce((select json_agg(json_build_object('id',c.id,'task_key',c.task_key,'status',case when t.category='module' and c.status='verified' and coalesce(public._lesson_percentage(c.proof),0)<70 then 'pending' else c.status end,'proof',c.proof,'claimed_at',c.claimed_at) order by c.claimed_at)
@@ -129,6 +138,67 @@ begin
         'entries',d.entries,'pool_size',d.pool_size,'drawn_at',d.drawn_at) order by d.drawn_at desc)
       from draws d join entrants e on e.id=d.entrant_id), '[]'::json));
 end $function$;
+
+create or replace function public._draw_pool(p_kind text)
+returns table(entrant_id uuid, weight integer) language sql stable set search_path = '' as $$
+  select e.id,greatest(s.verified_points,1) from public.entrants e
+  join public._scores s on s.entrant_id=e.id
+  where not e.disqualified and not e.is_test
+    and case
+      when p_kind='weekly' then s.modules_verified>=1
+      when p_kind in ('final_small','grand') then s.modules_total=7 and s.modules_verified=7
+      else false end
+    and not exists(select 1 from public.draws d where d.entrant_id=e.id
+      and case when p_kind in ('weekly','final_small') then d.kind in ('weekly','final_small')
+               when p_kind='grand' then d.kind='grand' else true end);
+$$;
+revoke all on function public._draw_pool(text) from public,anon,authenticated;
+
+create or replace function public.admin_draw(p_key text,p_prize text,p_kind text default 'grand',p_label text default null)
+returns json language plpgsql security definer set search_path = public as $$
+declare picked record;
+begin
+  if not _is_admin(p_key) then return json_build_object('error','denied'); end if;
+  if p_kind is null or p_kind not in ('weekly','final_small','grand') then return json_build_object('error','kind'); end if;
+  if p_prize is distinct from (case when p_kind='grand' then 'Grand prize: 25 lb bag' else '5 lb bag' end) then
+    return json_build_object('error','prize');
+  end if;
+  -- Serialize draws so concurrent requests cannot give one baker two small bags.
+  perform pg_advisory_xact_lock(hashtextextended('ancient-grain-challenge-draw',0));
+  if (p_kind='final_small' and (select count(*) from draws where kind='final_small')>=2)
+    or (p_kind='grand' and (select count(*) from draws where kind='grand')>=1)
+    or (p_kind='weekly' and (select count(*) from draws where kind='weekly')>=28) then
+    return json_build_object('error','prize_limit');
+  end if;
+  with pool as materialized (select * from public._draw_pool(p_kind))
+  select entrant_id,weight,(select count(*)::integer from pool) as pool_size into picked
+  from pool order by -ln(1-random())/weight limit 1;
+  if not found then return json_build_object('error','empty'); end if;
+  insert into draws(prize,entrant_id,entries,pool_size,kind,label)
+  values(p_prize,picked.entrant_id,picked.weight,picked.pool_size,p_kind,left(p_label,60));
+  return (select json_build_object('name',full_name,'email',email,'skool_name',skool_name,
+    'preferred_grain',preferred_grain,'entries',picked.weight,'pool_size',picked.pool_size)
+    from entrants where id=picked.entrant_id);
+end $$;
+
+-- Remove the ambiguous old overload. Defaulted grand calls now use the same
+-- guarded implementation; a small prize cannot be drawn through the grand pool.
+drop function public.admin_draw(text,text);
+
+create or replace function public.leaderboard()
+returns json language sql stable security definer set search_path = public as $$
+  select coalesce(json_agg(r order by r.points desc,r.joined),'[]'::json) from (
+    select split_part(e.full_name,' ',1)||coalesce(' '||nullif(left(split_part(e.full_name,' ',2),1),'')||'.','') as name,
+      s.verified_points as points,s.modules_total>0 and s.modules_verified>=s.modules_total as qualified,e.created_at as joined
+    from entrants e join _scores s on s.entrant_id=e.id
+    where not e.disqualified and not e.is_test order by s.verified_points desc,e.created_at limit 50) r;
+$$;
+create or replace function public.stats()
+returns json language sql stable security definer set search_path = public as $$
+  select json_build_object('entrants',(select count(*) from entrants where not disqualified and not is_test),
+    'qualified',(select count(*) from entrants e join _scores s on s.entrant_id=e.id
+      where not e.disqualified and not e.is_test and s.modules_total>0 and s.modules_verified>=s.modules_total));
+$$;
 
 -- Only replace the exact stale copy observed during this audit.
 update public.tasks set description='Why rye dough does not behave like wheat. Watch the lesson, then take the quiz and pass at 70% or better.'
