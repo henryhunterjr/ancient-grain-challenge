@@ -65,7 +65,7 @@
   <section>
     <div class="wrap wide stack">
       <h2>The drawings</h2>
-      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday. <strong>Grand prize:</strong> only bakers who finished all seven lessons. Each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
+      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday, October 16 through November 27. <strong>December 1:</strong> the final two 5 lb bags and the 25 lb grand prize require all seven lessons. Earlier 5 lb winners remain eligible for the grand prize. The current draw controls have no separate December 1 option for the final two bags; do not use the Friday pool for them. Each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
       <div class="bar">
         <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="grand">Grand prize: 25 lb bag</option></select></label>
         <label for="draw-label" style="flex:1 1 200px">Label <input id="draw-label" placeholder="Week 1 · Oct 16"></label>
@@ -114,7 +114,12 @@
       const msg = el("span", { class: "msg", role: "status" });
       const act = (status) => async (ev) => {
         ev.target.disabled = true;
-        try { const r = await rpc("admin_review", { p_key: key, p_claim_id: c.id, p_status: status }); if (r.error) throw 0; await refresh(); }
+        try {
+          const r = await rpc("admin_review", { p_key: key, p_claim_id: c.id, p_status: status });
+          if (r.error === "quiz_score") { msg.className = "msg err"; msg.textContent = "This lesson needs a passing quiz percentage and YouTube name. Ask the baker to complete it again."; ev.target.disabled = false; return; }
+          if (r.error) throw 0;
+          await refresh();
+        }
         catch { msg.className = "msg err"; msg.textContent = "Couldn't save. Try again."; ev.target.disabled = false; }
       };
       return el("div", { class: "queue-item" },

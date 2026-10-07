@@ -1,0 +1,5 @@
+database/
+tests/
+docs/
+test-output/
+*.log
