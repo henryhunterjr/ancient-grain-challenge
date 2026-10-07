@@ -33,6 +33,8 @@ const server=http.createServer((req,res)=>{
     if(name==='leaderboard'||name==='winners')result=[];
     if(name==='my_progress'&&body.p_token===token)result={first_name:'Synthetic',modules_total:7,modules_verified:claims.length,qualified:claims.length===7,verified_points:20*claims.length,pending_points:0,claims};
     if(name==='claim_task'){claims.push({task_key:body.p_task_key,proof:body.p_proof,status:'verified'});result={ok:true,status:'verified'};}
+    if(name==='admin_overview')result={entrants:[],draws:[]};
+    if(name==='admin_draw')result={error:'empty'};
     return route.fulfill({json:result});
    }
    return route.abort();
@@ -75,7 +77,12 @@ const server=http.createServer((req,res)=>{
   await page.goto(base);await page.getByText("You've completed at least one lesson",{exact:false}).waitFor();
   await page.screenshot({path:path.join(output,'home-mobile.png'),fullPage:true});
   await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(output,'home-desktop.png'),fullPage:true});
+  await page.goto(base+'/admin');await page.locator('#key').fill('local-only-test');await page.getByRole('button',{name:'Open',exact:true}).click();
+  await page.locator('#draw-kind').waitFor();await page.locator('#draw-kind').selectOption('final_small');
+  await page.getByRole('button',{name:'Draw a winner',exact:true}).click();await page.getByRole('button',{name:'Yes, draw now',exact:true}).click();
+  const drawCall=calls.find(c=>c.name==='admin_draw');assert.equal(drawCall.body.p_kind,'final_small');assert.equal(drawCall.body.p_prize,'5 lb bag');
+  await page.screenshot({path:path.join(output,'admin-final-pool.png'),fullPage:true});
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS: 393px checkbox sizes, entry-code sign-in, failing scores blocked before RPC, passing completion, weekly status, direct recipe links, mobile/desktop renders; no live API calls');
+  console.log('PASS: 393px controls, entry-code sign-in, score validation, progress, links, mobile/desktop renders and mocked December-small-bag request; no live API calls');
  } finally {await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});

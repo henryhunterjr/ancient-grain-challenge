@@ -3,7 +3,7 @@
 Repository: https://github.com/henryhunterjr/ancient-grain-challenge
 Branch: `fix/launch-eligibility-validation`. Base: `4b6b506972aac7744bc8becd7228c55772a44303`.
 Production: https://challenge.bakinggreatbread.com/ . Supabase project: `pmhytaaajbhzyldmxmzb`.
-Date: October 7, 2026. No production writes, entrant changes, draws, merge, or deployment were performed.
+Date: October 7, 2026. No production writes, entrant changes, live draws, merge, or production deployment were performed. Isolated synthetic draw tests were rolled back.
 
 ## What changed
 
@@ -14,6 +14,8 @@ Date: October 7, 2026. No production writes, entrant changes, draws, merge, or d
 - Rye's stale video description and optional-score hints are corrected with exact-value database guards and a targeted frontend fallback. All seven quiz links remain, including Kneading Fallacy.
 - Failing Recipe Pantry shortener hops in the recipe section, footer and baking bonus links use https://recipepantry.app/fresh-milled . Affiliate links are preserved.
 - Newsletter/rules checkboxes have fixed nonshrinking 22×22 controls and label targets at least 44 pixels tall. Consent requirements remain unchanged.
+- The Host Desk has a distinct `final_small` option for December 1's two 5 lb bags. Its backend pool requires exactly the existing seven active lessons; the weekly pool requires at least one. A prior small win excludes a baker from both small-prize pools while leaving them grand eligible. An advisory transaction lock serializes draws, and published totals are capped at 28 weekly small bags, two final small bags and one grand prize. Prize-kind validation prevents a small prize from using the grand pool. The old ambiguous two-argument overload is removed; defaulted calls route through the guarded grand handler.
+- `entrants.is_test` is an explicit default-false flag. It excludes designated tests from every draw pool, public leaderboard and public counts, and appears in Host Desk reporting/CSV. The schema migration does not designate any existing record as a test. There is no name/email heuristic.
 
 ## Recovery proposal: separate decision before release
 
@@ -23,19 +25,32 @@ A separate recovery branch/PR stages code-only returning-entry UI and `database/
 
 Henry must approve this transition and establish how support verifies a lost-code request before releasing it. A person with neither their code nor a signed-in device would need this support route. Staff must not issue a code solely because an email/name match was supplied. Do not deploy the recovery UI alone and claim the vulnerability is closed. A future verified-email flow may use existing infrastructure, but no paid service, credential, or new messaging integration has been introduced.
 
-## Read-only draw audit and unresolved decisions
+## Migration impact and unresolved decisions
 
-- The active four-argument `admin_draw` uses at least one completed lesson for `weekly`, all active modules for `grand`, excludes prior weekly winners only from weekly draws, and retains them for grand. It excludes disqualified entrants. It has no explicit test-entry flag/filter, no schedule enforcement and no distinct final-two-small-bag December pool. Do **not** select weekly for December's final two bags: it admits one-lesson bakers. An authorized draw change is needed before that event. The old two-argument overload also remains and excludes all prior winners; the current UI calls the four-argument version.
+- The old live handler still has the audit bugs described above until the guarded SQL is authorized and applied. The new draft fixes the December pool and explicit test exclusion. The host still chooses the published draw date and draws four on each Friday; this change does not introduce automatic scheduling or execute a live draw.
 - Preexisting public `Test E.` has five of seven modules, 100 points and is not disqualified: it currently enters the weekly pool. Approved `TEST dot Launch Audit` has zero points and zero modules, so does not enter either pool. Another old test is already disqualified. No test entrant was removed or edited. Henry must authorize exclusion/cleanup; names alone are not a reliable automatic test filter.
+- Exact proposal: after the schema migration, set `is_test=true` on the two confirmed record IDs in `database/confirmed-test-flags-proposal.sql` only. It locks those rows and verifies their previously inspected full names and false flags before updating exactly two IDs. This is a separate data approval, not part of `launch-validation.sql`. `database/undo-confirmed-test-flags.sql` reverses just those two flags. Records, tokens, claims, proof, newsletter choice and disqualification remain intact.
+- Read-only `database/eligibility-impact.sql` models the change without creating a function or writing a record. Four entrant records exist; one is already disqualified. Among three active records, score validation changes two entrants' points, removes one entrant's weekly eligibility and one entrant's December eligibility. It preserves one passing historical fraction and stops counting eleven other module claims until corrected. All original twelve stored verified claims remain intact.
+
+| Current snapshot | Before | After score validation | After scores + separately approved two test flags |
+|---|---:|---:|---:|
+| Active participating records | 3 | 3 | 1 |
+| Weekly eligible | 2 | 1 | 0 |
+| December eligible | 1 | 0 | 0 |
+| Verified points among participating records | 240 | 20 | 0 |
+| Existing live draws | 0 | 0 | 0 |
+
+The remaining passing lesson belongs to the confirmed preexisting test; its effective points become 20 before flagging. The other formerly December-qualified participant needs valid scores recorded. The 0-point launch audit remains ineligible throughout. Counts are a snapshot, not a guarantee about later entrants; rerun the read-only impact query before release. A participant correction/support plan is required before the scoring transition.
 - Prize total remains 175 lb (thirty 5 lb bags plus the 25 lb grand prize), pending Henry's business confirmation. Mandatory newsletter and YouTube comments remain in force.
 - Saturday Bake Along bonus still requires an Academy activity. This may give paying members a points advantage; Henry's requirement that outside participants can enter free is preserved, but any free alternative/bonus policy needs a decision. No paid requirements were changed.
 - The tracked partner email draft still has older wording about nobody winning twice; it was not sent or changed in this repair.
+- Module One launch mismatch: the current seven-item mapping pairs the Module One/From Berries to Bread quiz (`m3`) with YouTube `smiOhsBluSY`, which the mapping audit identifies as the 4:35 series introduction. The actual Module One teaching-video URL is awaiting Henry. Preserve the ID and seven-lesson denominator until he supplies it; do not invent an eighth lesson or an unknown teaching URL.
 
 ## Verification and release order
 
-Local Node validation matrix and inline script syntax pass. Isolated PostgreSQL 17 tests pass for blank/nonfinite/range/threshold inputs, 70 and 100 boundaries, decimals, historical fractions, preservation/correction of prior proof, eligibility totals, admin bypass prevention, bonus review behavior and RLS. Separate recovery proposal tests verify the code-only transition. No draw function is executed by the tests; draw-definition hashes are checked unchanged.
+Local Node validation matrix and inline script syntax pass. Isolated PostgreSQL 17 tests pass for blank/nonfinite/range/threshold inputs, 70 and 100 boundaries, decimals, historical fractions, preservation/correction of prior proof, eligibility totals, admin bypass prevention, bonus review behavior and RLS. `tests/draws.sql` tests 1/6/7-lesson pools, explicit flags (including a test-looking name with a false flag that remains eligible), deterministic/synthetic draws, the shared one-small-win rule, retained grand eligibility, published prize caps and the obsolete overload. Synthetic draw history is rolled back. `tests/test-flags.sql` verifies the exact two-row proposal and undo. Separate recovery proposal tests verify the code-only transition.
 
-Playwright tests use intercepted synthetic fixtures and no real API calls. They pass at 393 CSS pixels for checkbox dimensions, entry-code sign-in, client rejection before RPC, passing submission, progress status and direct links; 393-pixel and 1440-pixel renders were inspected. Captures are local in `test-output/` and excluded from Git and deployment. External fonts/YouTube thumbnails were blocked in this isolated run, so this is layout/form QA, not third-party media playback verification.
+Playwright tests use intercepted synthetic fixtures and no real API calls. They pass at 393 CSS pixels for checkbox dimensions, entry-code sign-in, client rejection before RPC, passing submission, progress status and direct links; 393-pixel and 1440-pixel renders were inspected. The December small-prize option sends `final_small` plus `5 lb bag` to a mocked endpoint. Captures are local in `test-output/` and excluded from Git and deployment. External fonts/YouTube thumbnails were blocked in this isolated run, so this is layout/form QA, not third-party media playback verification.
 
 To rerun frontend checks, use an explicit Node executable:
 
@@ -46,7 +61,9 @@ $env:AGC_CHROMIUM_PATH='<installed chrome.exe path>'
 & 'C:\Program Files\nodejs\node.exe' 'tests\browser.cjs'
 ```
 
-For backend tests, create a fresh **local disposable** PostgreSQL cluster/database; load `tests/baseline-schema.sql`, then `database/launch-validation.sql`, then `tests/backend.sql` with `psql -v ON_ERROR_STOP=1`. Fixtures contain only synthetic data. Never load the baseline schema into production.
+For backend tests, create a fresh **local disposable** PostgreSQL cluster/database; load `tests/baseline-schema.sql`, then `database/launch-validation.sql`, then `tests/backend.sql`, `tests/draws.sql` and `tests/test-flags.sql` with `psql -v ON_ERROR_STOP=1`. Fixtures contain only synthetic data. Never load the baseline schema or tests into production.
+
+Rollback is concrete and separately reviewed: `database/rollback-launch-validation.sql` restores the inspected pre-fix functions/view and exact task-copy changes, leaves entrant/claim/proof data intact, and removes the added flag column. It checks hashes of the released functions/view, takes the draw advisory lock and refuses to run if draw history or true test flags exist. Undo approved test flags separately if authorized. The full rollback reopens the old validation/eligibility bugs and requires withdrawing/reverting the frontend, so it is an emergency retreat, not launch approval. Local rollback → reapply → full test cycle passes. Recovery PR #2 is not changed by this rollback.
 
 Before any release: obtain parent authorization; review the separate recovery transition; refresh Git HEAD and database definitions; audit affected historical claims read-only; then apply the guarded validation SQL before releasing this frontend. Apply the separately approved recovery SQL before releasing its frontend change. SQL checks hashes of the inspected live functions/view and aborts atomically if another editor changed them. Do not bypass a guard without reinspecting. Changing the effective eligibility of incomplete historical claims requires a clear participant communication/support plan; no claim is deleted.
 
