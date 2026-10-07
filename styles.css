@@ -155,3 +155,9 @@ footer { padding-block: 36px 56px; font-size: .88rem; border-top: 1px solid var(
 .cta-row{display:flex;gap:10px;flex-wrap:wrap}
 .btn-link.ghost-link{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
 html{scroll-padding-top:56px}
+
+.winner-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.winner-row:first-child{border-top:1px solid var(--line)}
+
+.steps-compact{margin:0;padding-left:1.3rem;display:grid;gap:6px}
+.footer-links{font-weight:600}

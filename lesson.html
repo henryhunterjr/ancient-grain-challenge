@@ -13,10 +13,10 @@
 </head>
 <body>
 <a href="/"><div class="site-banner"><img src="img/site-header.jpg" alt="Ancient Grain Challenge, Crust &amp; Crumb Academy and Recipe Pantry Ancient Grains" width="2400" height="340" fetchpriority="high"></div></a>
-
 <nav class="topnav" aria-label="Page sections"><div class="wrap">
-  <a href="/#lessons">All lessons</a><a href="/#me">Your entry</a><a href="/#board-h">Leaderboard</a><a href="/#rules">Rules</a>
+  <a href="/#lessons">All lessons</a><a href="/#me">Your entry</a><a href="/#winners">Winners</a><a href="/#board-h">Leaderboard</a><a href="/#rules">Rules</a>
 </div></nav>
+
 <main class="lesson">
   <section>
     <div class="wrap stack" id="lesson-body">
@@ -27,8 +27,8 @@
 
 <footer>
   <div class="wrap stack">
-    <p><a href="/#lessons">Back to all lessons</a></p>
-    <p class="muted">&copy; 2026 Henry Hunter, Crust &amp; Crumb Academy, Baking Great Bread at Home. Questions? Email henrysbreadkitchen@gmail.com.</p>
+    <p><a href="/#lessons">Back to all lessons</a> · <a href="/#rules">Official rules</a></p>
+    <p class="muted">&copy; 2026 Henry Hunter, Crust &amp; Crumb Academy, Baking Great Bread at Home. All rights reserved. Grain provided by Grand Teton Ancient Grains. Questions? Email henrysbreadkitchen@gmail.com.</p>
   </div>
 </footer>
 
@@ -36,7 +36,7 @@
 <script>
 (() => {
   const { rpc, store, el, LESSONS, videoBox } = AGC;
-  const TOKEN_KEY = "agc_token";
+  const TOKEN_KEY = "agc_token", YT_KEY = "agc_youtube_name";
   const body = document.getElementById("lesson-body");
   const key = new URLSearchParams(location.search).get("m");
 
@@ -64,35 +64,49 @@
       prev ? el("a", { href: "lesson?m=" + prev.key, text: "← " + prev.title }) : el("a", { href: "/#lessons", text: "← All lessons" }),
       next ? el("a", { href: "lesson?m=" + next.key, text: next.title + " →" }) : el("a", { href: "/#lessons", text: "All lessons →" }));
 
+    const ytLinks = L.videos.map((id, n) => el("a", { class: "btn-link ghost-link", href: "https://www.youtube.com/watch?v=" + id, target: "_blank", rel: "noopener",
+      text: L.videos.length > 1 ? `Comment on video ${n + 1} on YouTube` : "Leave a comment on YouTube" }));
+
     // Mark-complete block
     let complete;
     const msg = el("span", { class: "msg", role: "status" });
     if (!progress) {
       complete = el("div", { class: "card stack" },
         el("h3", { text: "Track your progress" }),
-        el("p", { class: "muted", text: "You're watching as a guest. Register on the challenge page to mark lessons done and enter the drawing." }),
+        el("p", { class: "muted", text: "You're watching as a guest. Register on the challenge page to mark lessons done and enter the drawings." }),
         el("div", {}, el("a", { class: "btn-link", href: "/#me", text: "Register, it's free" })));
     } else if (done) {
       complete = el("div", { class: "card stack" },
-        el("div", { class: "status-line" }, el("span", { class: "pill verified", text: "Done" }), el("span", { class: "muted", text: `Lesson ${i + 1} of ${mods.length} complete${claim.proof ? ". Score: " + claim.proof : ""}` })),
+        el("div", { class: "status-line" }, el("span", { class: "pill verified", text: "Done" }),
+          el("span", { class: "muted", text: `Lesson ${i + 1} of ${mods.length} complete${claim.proof ? ". " + claim.proof : ""}` })),
         el("div", { class: "lesson-nav" }, next
           ? el("a", { class: "btn-link", href: "lesson?m=" + next.key, text: "Next lesson: " + next.title })
           : el("a", { class: "btn-link", href: "/#me", text: "See your entry" })));
     } else {
-      const input = el("input", { placeholder: t.proof_hint || "Your quiz score, like 8 of 10", "aria-label": "Quiz score", style: "flex:1 1 200px" });
+      const ytName = el("input", { placeholder: "Your YouTube name", value: store.get(YT_KEY) || "", "aria-label": "The YouTube name you commented under", style: "flex:1 1 180px" });
+      const score = el("input", { placeholder: "Quiz score, like 8 of 10", "aria-label": "Quiz score", style: "flex:1 1 160px" });
       const btn = el("button", { type: "button", class: "small" }, "I finished this lesson");
       btn.addEventListener("click", async () => {
+        const yn = ytName.value.trim();
+        if (!yn) { msg.className = "msg err"; msg.textContent = "Add the YouTube name you commented under."; ytName.focus(); return; }
         btn.disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
         try {
-          const r = await rpc("claim_task", { p_token: token, p_task_key: key, p_proof: input.value.trim() });
+          store.set(YT_KEY, yn);
+          const proof = "YouTube: " + yn + (score.value.trim() ? " · Score: " + score.value.trim() : "");
+          const r = await rpc("claim_task", { p_token: token, p_task_key: key, p_proof: proof });
           if (r.error) throw new Error(r.error);
           location.reload();
         } catch { msg.className = "msg err"; msg.textContent = "Couldn't save that. Try again."; btn.disabled = false; }
       });
       complete = el("div", { class: "card stack" },
         el("h3", { text: "Mark it done" }),
-        el("p", { class: "muted", text: "Watched the video and passed the quiz at 70% or better? Enter your score and check it off. This is on the honor system, and we verify scores for the winners." }),
-        el("div", { class: "task-actions" }, input, btn, msg));
+        el("ol", { class: "steps-compact" },
+          el("li", { text: "Watch the video." }),
+          el("li", { text: L.quiz ? "Take the quiz and pass at 70% or better." : "Quiz coming soon. Skip this step for now." }),
+          el("li", { text: "Leave a comment on the video on YouTube. One line is plenty: what you learned, or a question for me. That comment is your proof." })),
+        el("div", { class: "quiz-row" }, ...ytLinks),
+        el("p", { class: "muted", text: "Then tell us the YouTube name you commented under and your quiz score." }),
+        el("div", { class: "task-actions" }, ytName, score, btn, msg));
     }
 
     body.replaceChildren(
@@ -104,7 +118,7 @@
       el("div", { class: "quiz-row" },
         L.quiz
           ? el("a", { class: "btn-link", href: L.quiz, target: "_blank", rel: "noopener", text: "Take the quiz (pass at 70%)" })
-          : el("span", { class: "muted", text: "Quiz coming soon. Watch the video, then mark the lesson done." })),
+          : el("span", { class: "muted", text: "Quiz coming soon. Watch the video, leave your comment, then mark the lesson done." })),
       complete,
       nav("bottom"));
   }

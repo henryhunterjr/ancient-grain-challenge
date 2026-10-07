@@ -47,7 +47,7 @@
   <section>
     <div class="wrap wide stack">
       <h2>Waiting for review</h2>
-      <p class="muted">Lesson check-offs count right away (honor system, with an optional quiz score). Spot check the winners before the draw. Open links for bonus claims and confirm them here.</p>
+      <p class="muted">Lesson check-offs count right away. Each one records the baker's quiz score and the YouTube name they commented under. To spot check a winner, open that lesson's video on YouTube and search the comments for the name. Open links for bonus claims and confirm them here.</p>
       <div id="queue"></div>
     </div>
   </section>
@@ -64,10 +64,11 @@
 
   <section>
     <div class="wrap wide stack">
-      <h2>The drawing</h2>
-      <p class="muted">Only qualified bakers who haven't already won are in the pool. Each verified point is one entry. Draw the grand prize first. Every draw is saved and can't be undone, so do this live on December 1.</p>
+      <h2>The drawings</h2>
+      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday. <strong>Grand prize:</strong> only bakers who finished all seven lessons. Each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
       <div class="bar">
-        <label for="prize" style="flex:1 1 240px">Prize <select id="prize"><option>Grand prize: 25 lb bag</option><option>Runner-up: 5 lb bag (30 total)</option></select></label>
+        <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="grand">Grand prize: 25 lb bag</option></select></label>
+        <label for="draw-label" style="flex:1 1 200px">Label <input id="draw-label" placeholder="Week 1 · Oct 16"></label>
         <button type="button" id="draw-arm" style="align-self:end">Draw a winner</button>
         <button type="button" id="draw-go" hidden style="align-self:end">Yes, draw now</button>
         <button type="button" id="draw-cancel" class="ghost" hidden style="align-self:end">Cancel</button>
@@ -141,7 +142,7 @@
     }) : [el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No one has registered yet." }))]));
 
     document.getElementById("draws").replaceChildren(...data.draws.map(d => el("div", { class: "card winner stack", style: "gap:4px" },
-      el("strong", { text: `${d.prize}: ${d.name} (${d.preferred_grain || "no grain chosen"})` }),
+      el("strong", { text: `${d.label ? d.label + " · " : ""}${d.prize}: ${d.name} (${d.preferred_grain || "no grain chosen"})` }),
       el("span", { class: "muted", text: `${d.email} · From: ${d.skool_name} · ${d.entries} entries out of a pool of ${d.pool_size} bakers · ${fmt(d.drawn_at)}` }))));
   }
 
@@ -173,8 +174,9 @@
   go.onclick = async () => {
     go.disabled = true;
     try {
-      const r = await rpc("admin_draw", { p_key: key, p_prize: document.getElementById("prize").value });
-      if (r.error === "empty") { dmsg.className = "msg err"; dmsg.textContent = "No qualified bakers left in the pool."; }
+      const kind = document.getElementById("draw-kind").value;
+      const r = await rpc("admin_draw", { p_key: key, p_prize: kind === "weekly" ? "5 lb bag" : "Grand prize: 25 lb bag", p_kind: kind, p_label: document.getElementById("draw-label").value.trim() || null });
+      if (r.error === "empty") { dmsg.className = "msg err"; dmsg.textContent = kind === "weekly" ? "No eligible bakers left for a Friday draw." : "No qualified bakers left in the pool."; }
       else if (r.error) throw 0;
       else { dmsg.className = "msg ok"; dmsg.textContent = `Winner: ${r.name} (${r.entries} entries out of ${r.pool_size} bakers).`; await refresh(); }
     } catch { dmsg.className = "msg err"; dmsg.textContent = "The draw didn't go through. Try again."; }
