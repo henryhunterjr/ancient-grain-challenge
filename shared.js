@@ -35,7 +35,7 @@ const AGC = (() => {
     m3: { videos: ["smiOhsBluSY"], quiz: "https://muse.ai/s/from-berries-to-bread-module-one-kj65x0xbgxctgu" },
     m7: { videos: ["Lyjw-E4a-Qk"], quiz: "https://muse.ai/s/rye-redefined-quiz-lxm6dxqxlxxkxoxkn" },
     m1: { videos: ["QoGpW6hXxz8"], quiz: "https://muse.ai/s/why-ancient-wheat-dough-feels-xht6epxj9xxxrrn" },
-    m2: { videos: ["1GGZgB2TMgY"], quiz: null },
+    m2: { videos: ["1GGZgB2TMgY"], quiz: "https://muse.ai/s/the-kneading-fallacy-xox06exr433x0xoxm" },
     m4: { videos: ["xWSZYfOUkrw"], quiz: "https://muse.ai/s/which-wheat-berry-xyr6exixztixzgi" },
     m6: { videos: ["30SLfbm1fZk"], quiz: "https://muse.ai/s/mastering-einkorn-gs6exki0xyxbfxe" },
     m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quiz: "https://muse.ai/s/ancient-grain-sourdough-starter-jv6exlxjhxj67f" }
