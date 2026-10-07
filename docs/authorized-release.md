@@ -1,0 +1,11 @@
+# October 7, 2026 authorized release
+
+Henry approved publication, the two confirmed test exclusions, saved-code recovery with identity-checked manual help, and zeroing the eleven existing non-real lesson claims. Module One's replacement video remains pending; no mapping, consent requirement or Muse integration change is authorized.
+
+Apply in order: `launch-validation.sql`, `zero-nonreal-claims.sql`, `confirmed-test-flags-proposal.sql`, then `entry-code-recovery-proposal.sql` from recovery PR #2. Refresh live definition/identity/count guards first. Merge PR #1 into main, retarget PR #2 to main and merge its separate recovery change. Both merge operations must pin the reviewed head SHA.
+
+The eleven non-real claims become rejected and contribute zero verified or pending points. Their full originals are saved in `agc_archive.launch_claim_originals`, a separate private schema with RLS and no anonymous/authenticated access. No claim or entrant is deleted, and no entry token is copied to the archive. The one valid historical fraction remains intact; both confirmed test entries are excluded from public points/counts/draws.
+
+`restore-nonreal-claims.sql` can restore original status/review values only if proof, claim timestamp and rejected state still match the cleanup; it refuses to overwrite later corrections. The archive remains intact after restoration. Restoring invalid claims does not bypass the passing-score rule. A full release rollback remains separately guarded and must account for test flags, this claim cleanup and recovery.
+
+Local cleanup tests passed for exact eleven-row archive/update, zero points, private archive access and guarded restoration. Production verification must avoid real draws and additional newsletter subscriptions: inspect the signup controls, exercise invalid/passing score cases transactionally on the already-approved test entry with rollback, inspect public pools/counts and verify saved-code recovery. Report actual deployed state separately from local tests and review previews.
