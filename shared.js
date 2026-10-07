@@ -30,5 +30,26 @@ const AGC = (() => {
     for (const kid of kids.flat()) if (kid != null) n.append(kid.nodeType ? kid : document.createTextNode(kid));
     return n;
   }
-  return { rpc, store, el };
+  // Lessons: YouTube IDs and muse.ai quiz links, keyed by task key. Order comes from the tasks table.
+  const LESSONS = {
+    m3: { videos: ["smiOhsBluSY"], quiz: "https://muse.ai/s/from-berries-to-bread-module-one-kj65x0xbgxctgu" },
+    m7: { videos: ["Lyjw-E4a-Qk"], quiz: "https://muse.ai/s/rye-redefined-quiz-lxm6dxqxlxxkxoxkn" },
+    m1: { videos: ["QoGpW6hXxz8"], quiz: "https://muse.ai/s/why-ancient-wheat-dough-feels-xht6epxj9xxxrrn" },
+    m2: { videos: ["1GGZgB2TMgY"], quiz: null },
+    m4: { videos: ["xWSZYfOUkrw"], quiz: "https://muse.ai/s/which-wheat-berry-xyr6exixztixzgi" },
+    m6: { videos: ["30SLfbm1fZk"], quiz: "https://muse.ai/s/mastering-einkorn-gs6exki0xyxbfxe" },
+    m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quiz: "https://muse.ai/s/ancient-grain-sourdough-starter-jv6exlxjhxj67f" }
+  };
+  function videoBox(id, i) {
+    const box = el("div", { class: "video" });
+    const b = el("button", { type: "button", class: "video-play", "aria-label": "Play lesson video " + (i + 1) },
+      el("img", { src: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg", alt: "", loading: "lazy" }),
+      el("span", { class: "play-icon", "aria-hidden": "true", text: "▶" }));
+    b.addEventListener("click", () => {
+      box.replaceChildren(el("iframe", { src: "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0", title: "Lesson video", allow: "accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "true" }));
+    });
+    box.append(b);
+    return box;
+  }
+  return { rpc, store, el, LESSONS, videoBox };
 })();

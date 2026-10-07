@@ -65,10 +65,18 @@
   </div>
 </section>
 
+<section aria-labelledby="lessons-h" id="lessons">
+  <div class="wrap stack">
+    <h2 id="lessons-h">The lessons</h2>
+    <p class="muted">Seven lessons, each one a video and a short quiz. Open a lesson, watch it, take the quiz, and mark it done. Finish all seven and you're qualified for the drawing.</p>
+    <div id="syllabus" class="syllabus"><p class="muted" style="padding:16px 0">Loading the lessons…</p></div>
+  </div>
+</section>
+
 <section aria-labelledby="tasks-h">
   <div class="wrap stack">
-    <h2 id="tasks-h">Ways to earn points</h2>
-    <p class="muted">Modules are required. Everything else is a bonus. When you check something off, it shows as <span class="pill pending">pending</span> until we confirm it, usually within a couple of days.</p>
+    <h2 id="tasks-h">Bonus points</h2>
+    <p class="muted">Every point is one more entry in the drawing. When you check something off here, it shows as <span class="pill pending">pending</span> until we confirm it, usually within a couple of days.</p>
     <div id="tasks" class="tasks"><p class="muted" style="padding:16px 0">Loading the list…</p></div>
   </div>
 </section>
@@ -217,11 +225,11 @@
         el("span", { class: "muted", text: `verified points` }),
         p.pending_points ? el("span", { class: "pill pending", text: `${p.pending_points} pending` }) : null),
       el("div", { class: "stack", style: "gap:6px" },
-        el("p", {}, el("strong", { text: `Modules: ${p.modules_verified} of ${p.modules_total} verified` })),
+        el("p", {}, el("strong", { text: `Lessons: ${p.modules_verified} of ${p.modules_total} done` })),
         el("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct) }, el("span", { style: `width:${pct}%` })),
         el("p", { class: p.qualified ? "msg ok" : "muted", text: p.qualified
           ? "You're qualified for the drawing. Keep earning points for more entries."
-          : "Finish every module to qualify for the drawing." })),
+          : "Finish every lesson to qualify for the drawing." })),
       el("div", { class: "stack", style: "gap:6px" },
         el("p", { class: "muted", text: "Your entry code. Save it so you can pick up on another phone or computer:" }),
         el("div", { class: "code", text: store.get(TOKEN_KEY) || "" })),
@@ -317,42 +325,41 @@
       el("details", {}, el("summary", { text: "Already registered?" }), el("div", {}, rec)));
   }
 
-  // Lessons: YouTube IDs and muse.ai quiz links, keyed by module task key. Add quiz links here as they're ready.
-  const LESSONS = {
-    m3: { videos: ["smiOhsBluSY"], quiz: "https://muse.ai/s/from-berries-to-bread-module-one-kj65x0xbgxctgu" },
-    m7: { videos: ["Lyjw-E4a-Qk"], quiz: "https://muse.ai/s/rye-redefined-quiz-lxm6dxqxlxxkxoxkn" },
-    m1: { videos: ["QoGpW6hXxz8"], quiz: "https://muse.ai/s/why-ancient-wheat-dough-feels-xht6epxj9xxxrrn" },
-    m2: { videos: ["1GGZgB2TMgY"], quiz: null },
-    m4: { videos: ["xWSZYfOUkrw"], quiz: "https://muse.ai/s/which-wheat-berry-xyr6exixztixzgi" },
-    m6: { videos: ["30SLfbm1fZk"], quiz: "https://muse.ai/s/mastering-einkorn-gs6exki0xyxbfxe" },
-    m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quiz: "https://muse.ai/s/ancient-grain-sourdough-starter-jv6exlxjhxj67f" }
-  };
 
-  function lessonBlock(key) {
-    const L = LESSONS[key];
-    if (!L) return null;
-    const nodes = L.videos.map((id, i) => {
-      const box = el("div", { class: "video" });
-      const b = el("button", { type: "button", class: "video-play", "aria-label": "Play lesson video " + (i + 1) },
-        el("img", { src: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg", alt: "", loading: "lazy" }),
-        el("span", { class: "play-icon", "aria-hidden": "true", text: "\u25B6" }));
-      b.addEventListener("click", () => {
-        box.replaceChildren(el("iframe", { src: "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0", title: "Lesson video", allow: "accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "true", loading: "lazy" }));
-      });
-      box.append(b);
-      return box;
-    });
-    if (!L.videos.length) nodes.push(el("p", { class: "muted small-note", text: "The video for this lesson is on its way. You can take the quiz now." }));
-    nodes.push(L.quiz
-      ? el("a", { class: "btn-link", href: L.quiz, target: "_blank", rel: "noopener", text: "Take the quiz (pass at 70%)" })
-      : el("p", { class: "muted small-note", text: "Quiz coming soon. Watch the video, then check this one off." }));
-    return el("div", { class: "lesson" }, ...nodes);
+  function renderSyllabus() {
+    const box = document.getElementById("syllabus");
+    const mods = tasks.filter(t => t.category === "module");
+    if (!mods.length) { box.replaceChildren(el("p", { class: "muted", style: "padding:16px 0", text: "The lessons are on their way." })); return; }
+    const claims = Object.fromEntries((progress?.claims || []).map(c => [c.task_key, c]));
+    const done = mods.filter(t => claims[t.key]?.status === "verified").length;
+    const pct = Math.round(100 * done / mods.length);
+    const head = progress
+      ? el("div", { class: "stack", style: "gap:6px" },
+          el("p", {}, el("strong", { text: `${done} of ${mods.length} lessons done` })),
+          el("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct) }, el("span", { style: `width:${pct}%` })))
+      : el("p", { class: "muted", text: "You can watch the lessons without registering. Register above to track your progress and enter the drawing." });
+    let nextKey = mods.find(t => claims[t.key]?.status !== "verified")?.key;
+    box.replaceChildren(head, el("ol", { class: "toc" }, ...mods.map((t, i) => {
+      const c = claims[t.key];
+      const L = AGC.LESSONS[t.key] || {};
+      const isDone = c?.status === "verified";
+      const status = !progress ? null : isDone ? el("span", { class: "pill verified", text: "Done" })
+        : t.key === nextKey ? el("span", { class: "pill req", text: "Up next" }) : el("span", { class: "pill", text: "Not started" });
+      return el("li", { class: "toc-item" + (isDone ? " done" : "") },
+        el("a", { href: "lesson?m=" + t.key, class: "toc-link" },
+          el("span", { class: "toc-num", text: String(i + 1) }),
+          el("span", { class: "toc-main" },
+            el("span", { class: "toc-title", text: t.title }),
+            el("span", { class: "muted toc-meta", text: [L.videos?.length > 1 ? "2 videos" : "Video", L.quiz ? "Quiz" : "Quiz coming soon", `${t.points} pts`].join(" · ") })),
+          status));
+    })));
   }
 
   function renderTasks() {
-    if (!tasks.length) { tasksBox.replaceChildren(el("p", { class: "muted", style: "padding:16px 0", text: "The task list is on its way." })); return; }
+    const bonus = tasks.filter(t => t.category !== "module");
+    if (!bonus.length) { tasksBox.replaceChildren(el("p", { class: "muted", style: "padding:16px 0", text: "The bonus list is on its way." })); return; }
     const claims = Object.fromEntries((progress?.claims || []).map(c => [c.task_key, c]));
-    tasksBox.replaceChildren(...tasks.map(t => {
+    tasksBox.replaceChildren(...bonus.map(t => {
       const c = claims[t.key];
       const proofId = "p-" + t.key;
       const msg = el("span", { class: "msg", role: "status" });
@@ -384,7 +391,6 @@
           el("div", {}, t.category === "module" ? el("span", { class: "pill req", text: "Required" }) : null),
           el("h3", { text: t.title }),
           el("p", { class: "muted", text: t.description }),
-          t.category === "module" ? lessonBlock(t.key) : null,
           t.link ? el("a", { href: t.link, target: "_blank", rel: "noopener", text: "Open it" }) : null),
         el("div", { class: "task-pts", text: `${t.points} pts` }),
         actions);
@@ -393,7 +399,7 @@
 
   async function renderAll() {
     await loadProgress();
-    renderMe(); renderTasks();
+    renderMe(); renderSyllabus(); renderTasks();
   }
 
   (async () => {

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lesson | Ancient Grain Challenge</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a href="/"><div class="site-banner"><img src="img/site-header.jpg" alt="Ancient Grain Challenge, Crust &amp; Crumb Academy and Recipe Pantry Ancient Grains" width="2400" height="340" fetchpriority="high"></div></a>
+
+<main class="lesson">
+  <section>
+    <div class="wrap stack" id="lesson-body">
+      <p class="muted">Loading the lesson…</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap stack">
+    <p><a href="/#lessons">Back to all lessons</a></p>
+    <p class="muted">&copy; 2026 Henry Hunter, Crust &amp; Crumb Academy, Baking Great Bread at Home. Questions? Email henrysbreadkitchen@gmail.com.</p>
+  </div>
+</footer>
+
+<script src="shared.js"></script>
+<script>
+(() => {
+  const { rpc, store, el, LESSONS, videoBox } = AGC;
+  const TOKEN_KEY = "agc_token";
+  const body = document.getElementById("lesson-body");
+  const key = new URLSearchParams(location.search).get("m");
+
+  function fail(text) {
+    body.replaceChildren(el("p", { class: "msg err", text }), el("p", {}, el("a", { href: "/#lessons", text: "Back to all lessons" })));
+  }
+
+  async function main() {
+    let tasks = [];
+    try { tasks = await rpc("get_tasks"); } catch { return fail("We couldn't load the lesson. Refresh to try again."); }
+    const mods = tasks.filter(t => t.category === "module");
+    const i = mods.findIndex(t => t.key === key);
+    if (i < 0) return fail("We couldn't find that lesson.");
+    const t = mods[i], L = LESSONS[key] || { videos: [], quiz: null };
+    const prev = mods[i - 1], next = mods[i + 1];
+    document.title = `${t.title} | Ancient Grain Challenge`;
+
+    let progress = null;
+    const token = store.get(TOKEN_KEY);
+    if (token) { try { progress = await rpc("my_progress", { p_token: token }); } catch {} }
+    const claim = progress?.claims?.find(c => c.task_key === key);
+    const done = claim?.status === "verified";
+
+    const nav = (cls) => el("nav", { class: "lesson-nav " + cls, "aria-label": "Lesson navigation" },
+      prev ? el("a", { href: "lesson?m=" + prev.key, text: "← " + prev.title }) : el("a", { href: "/#lessons", text: "← All lessons" }),
+      next ? el("a", { href: "lesson?m=" + next.key, text: next.title + " →" }) : el("a", { href: "/#lessons", text: "All lessons →" }));
+
+    // Mark-complete block
+    let complete;
+    const msg = el("span", { class: "msg", role: "status" });
+    if (!progress) {
+      complete = el("div", { class: "card stack" },
+        el("h3", { text: "Track your progress" }),
+        el("p", { class: "muted", text: "You're watching as a guest. Register on the challenge page to mark lessons done and enter the drawing." }),
+        el("div", {}, el("a", { class: "btn-link", href: "/#me", text: "Register, it's free" })));
+    } else if (done) {
+      complete = el("div", { class: "card stack" },
+        el("div", { class: "status-line" }, el("span", { class: "pill verified", text: "Done" }), el("span", { class: "muted", text: `Lesson ${i + 1} of ${mods.length} complete${claim.proof ? ". Score: " + claim.proof : ""}` })),
+        el("div", { class: "lesson-nav" }, next
+          ? el("a", { class: "btn-link", href: "lesson?m=" + next.key, text: "Next lesson: " + next.title })
+          : el("a", { class: "btn-link", href: "/#me", text: "See your entry" })));
+    } else {
+      const input = el("input", { placeholder: t.proof_hint || "Your quiz score, like 8 of 10", "aria-label": "Quiz score", style: "flex:1 1 200px" });
+      const btn = el("button", { type: "button", class: "small" }, "I finished this lesson");
+      btn.addEventListener("click", async () => {
+        btn.disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
+        try {
+          const r = await rpc("claim_task", { p_token: token, p_task_key: key, p_proof: input.value.trim() });
+          if (r.error) throw new Error(r.error);
+          location.reload();
+        } catch { msg.className = "msg err"; msg.textContent = "Couldn't save that. Try again."; btn.disabled = false; }
+      });
+      complete = el("div", { class: "card stack" },
+        el("h3", { text: "Mark it done" }),
+        el("p", { class: "muted", text: "Watched the video and passed the quiz at 70% or better? Enter your score and check it off. This is on the honor system, and we verify scores for the winners." }),
+        el("div", { class: "task-actions" }, input, btn, msg));
+    }
+
+    body.replaceChildren(
+      nav("top"),
+      el("p", { class: "lesson-eyebrow", text: `Lesson ${i + 1} of ${mods.length} · ${t.points} points` }),
+      el("h1", { text: t.title }),
+      el("p", { class: "muted", text: t.description }),
+      ...(L.videos.length ? L.videos.map((id, n) => videoBox(id, n)) : [el("p", { class: "muted", text: "The video for this lesson is on its way." })]),
+      el("div", { class: "quiz-row" },
+        L.quiz
+          ? el("a", { class: "btn-link", href: L.quiz, target: "_blank", rel: "noopener", text: "Take the quiz (pass at 70%)" })
+          : el("span", { class: "muted", text: "Quiz coming soon. Watch the video, then mark the lesson done." })),
+      complete,
+      nav("bottom"));
+  }
+  main();
+})();
+</script>
+</body>
+</html>
