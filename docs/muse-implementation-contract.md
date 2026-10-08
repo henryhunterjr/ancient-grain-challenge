@@ -113,6 +113,10 @@ Score-only storage earns **zero lesson points**. A best score >=70 plus explicit
 
 ## Review, verification and publication
 
+### Competing tabs
+
+When a new incoming result conflicts with the shared pending score, its unresolved choice stays in that tab's history entry, containing only validated public quiz data. Storage updates and entry changes refresh the current shared score without discarding the tab's candidate. Reload preserves the choice. Saving remains unavailable until the user explicitly keeps the current shared result or replaces it. A cleared shared result offers "Discard new result". The candidate expires seven days after arrival; selecting it preserves that original expiry. Closing the tab before choosing retains the existing shared pending score; the unchosen candidate is retained only if the browser restores that history entry. A save response for a replaced score or changed entry cannot clear the newer pending result or display a success confirmation.
+
 The approved combined database release is applied and independently inspected. The score migration requires the validation helper, test flag, revoked email/name recovery and canonical seven active modules; all are present. Prerequisite PRs #1 and #2 were merged at their pinned reviewed heads before retargeting this integration to main. An uncertain earlier migration attempt was checked read-only and found unapplied before the release proceeded.
 
 Review migration: `supabase/migrations/20261008020550_muse_quiz_handoff.sql`. Reviewed local rollback: `database/rollback-muse-quiz-handoff.sql`. Rollback removes all five new RPC/helper functions, retains the private score table and valid lesson claims, and does not erase any entrant's recorded best result. Restore the earlier frontend or disable the receiver before rollback; retained table data permits a separately reviewed recovery migration rather than silent data loss.

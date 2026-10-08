@@ -83,6 +83,62 @@ test('new result requires replacement choice; clear in another tab clears this t
   await other.getByRole('button',{name:'Cancel and clear pending score'}).click();
   await expect(page.getByText('No pending result.',{exact:false})).toBeVisible();
 });
+test('two incoming tabs retain their own choice across shared updates, reload and session changes',async({page,context})=>{
+  const calls=await fixture(page); await page.goto(link(70));
+  const first=await context.newPage(),second=await context.newPage();
+  await fixture(first); const secondCalls=await fixture(second);
+  await first.goto(link(80)); await second.goto(link(90));
+  await expect(first.getByRole('button',{name:'Use new 80% result'})).toBeVisible();
+  await expect(second.getByRole('button',{name:'Use new 90% result'})).toBeVisible();
+  await first.getByRole('button',{name:'Use new 80% result'}).click();
+  await expect(second.getByRole('button',{name:'Use new 90% result'})).toBeVisible();
+  await expect(second.getByRole('button',{name:'Keep earlier 80% result'})).toBeVisible();
+  await second.reload();
+  await expect(second.getByRole('button',{name:'Use new 90% result'})).toBeVisible();
+  expect(await second.evaluate(()=>Object.keys(history.state.quizCandidate).sort())).toEqual(['quiz','task','score','total','created','expires'].sort());
+  await first.evaluate(t=>localStorage.setItem('agc_token',t),B);
+  await expect(second.getByRole('button',{name:'Use new 90% result'})).toBeVisible();
+  await expect(second.getByRole('button',{name:'Save score for Bob'})).toHaveCount(0);
+  await second.getByRole('button',{name:'Keep earlier 80% result'}).click();
+  await expect(second.getByRole('button',{name:'Save score for Bob'})).toBeVisible();
+  expect(await second.evaluate(()=>history.state)).toBeNull();
+  expect([...calls,...secondCalls].some(c=>c.name==='record_quiz_score')).toBe(false);
+  await second.goto(link(90)); await second.getByRole('button',{name:'Use new 90% result'}).click();
+  await expect(first.getByRole('heading',{name:'90%',exact:false})).toBeVisible();
+  expect(await first.evaluate(()=>JSON.parse(localStorage.getItem('agc_pending_quiz_v1')).score)).toBe(90);
+});
+test('clearing shared pending does not discard an unresolved incoming candidate',async({page,context})=>{
+  await fixture(page); await page.goto(link(70));
+  const other=await context.newPage();await fixture(other);await other.goto(link(90));
+  await page.getByRole('button',{name:'Cancel and clear pending score'}).click();
+  await expect(other.getByRole('button',{name:'Use new 90% result'})).toBeVisible();
+  await expect(other.getByText('There is no current pending result.',{exact:true})).toBeVisible();
+  await other.reload();await other.getByRole('button',{name:'Discard new result'}).click();
+  await expect(other.getByText('No pending result.',{exact:false})).toBeVisible();
+  expect(await other.evaluate(()=>history.state)).toBeNull();
+});
+test('unresolved candidates expire and choosing one preserves its original expiry',async({page})=>{
+  await fixture(page);await page.goto(link(70));await page.goto(link(90));
+  const original=await page.evaluate(()=>history.state.quizCandidate);
+  await page.getByRole('button',{name:'Use new 90% result'}).click();
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('agc_pending_quiz_v1')).expires)).toBe(original.expires);
+  await page.goto(link(95));
+  await page.evaluate(()=>{const p=history.state.quizCandidate;p.created-=8*86400000;p.expires-=8*86400000;history.replaceState({quizCandidate:p},'');});
+  await page.reload();await expect(page.getByRole('button',{name:'Use new 95% result'})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'90%',exact:false})).toBeVisible();
+});
+test('another tab replacing pending during save cannot receive a false confirmation or be cleared',async({page,context})=>{
+  let release,started;const ready=new Promise(r=>started=r),held=new Promise(r=>release=r);
+  const calls=await fixture(page,A,async name=>{if(name==='record_quiz_score'){started();await held;}});
+  await page.goto(link(80));await page.getByRole('button',{name:'Save score for Alice'}).click();await ready;
+  const other=await context.newPage();await fixture(other);await other.goto(link(95));
+  await other.getByRole('button',{name:'Use new 95% result'}).click();
+  await expect(page.getByRole('heading',{name:'95%',exact:false})).toBeVisible();
+  release();await expect(page.getByRole('button',{name:'Save score for Alice'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Score saved:',exact:false})).toHaveCount(0);
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('agc_pending_quiz_v1')).score)).toBe(95);
+  expect(calls.filter(c=>c.name==='record_quiz_score')).toHaveLength(1);
+});
 test('expiry, malformed params and forged pass/time',async({page})=>{
   const calls=await fixture(page,A); await page.goto(link(0,'&pass=true&timestamp=2000-01-01'));
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('agc_pending_quiz_v1')))).not.toHaveProperty('pass');
