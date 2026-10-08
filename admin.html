@@ -65,9 +65,9 @@
   <section>
     <div class="wrap wide stack">
       <h2>The drawings</h2>
-      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday. <strong>Grand prize:</strong> only bakers who finished all seven lessons. Each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
+      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday, October 16 through November 27. <strong>December 1:</strong> use the final 5 lb bag option twice, then the grand prize option. Both require all seven lessons. A baker can win one 5 lb bag across all dates; earlier 5 lb winners remain eligible for the grand prize. Explicitly flagged test entries and removed entries are excluded from every pool. Each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
       <div class="bar">
-        <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="grand">Grand prize: 25 lb bag</option></select></label>
+        <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="final_small">December 1: final 5 lb bag (all seven lessons)</option><option value="grand">Grand prize: 25 lb bag</option></select></label>
         <label for="draw-label" style="flex:1 1 200px">Label <input id="draw-label" placeholder="Week 1 · Oct 16"></label>
         <button type="button" id="draw-arm" style="align-self:end">Draw a winner</button>
         <button type="button" id="draw-go" hidden style="align-self:end">Yes, draw now</button>
@@ -97,12 +97,12 @@
 
   function render() {
     const E = data.entrants; const oldT = document.getElementById("grain-tally"); if (oldT) oldT.remove();
-    const qualified = E.filter(e => !e.disqualified && e.modules_total > 0 && e.modules_verified >= e.modules_total);
+    const qualified = E.filter(e => !e.disqualified && !e.is_test && e.modules_total > 0 && e.modules_verified >= e.modules_total);
     const pending = E.flatMap(e => e.claims.filter(c => c.status === "pending").map(c => ({ ...c, e })));
     document.getElementById("tiles").replaceChildren(
       ...[["Registered", E.length], ["Qualified", qualified.length], ["Waiting for review", pending.length], ["Newsletter opt-ins", E.filter(e => e.newsletter).length]]
         .map(([l, n]) => el("div", { class: "tile" }, el("b", { text: String(n) }), el("span", { class: "muted", text: l }))));
-    const tally = {}; E.filter(e => !e.disqualified && e.preferred_grain).forEach(e => { tally[e.preferred_grain] = (tally[e.preferred_grain] || 0) + 1; });
+    const tally = {}; E.filter(e => !e.disqualified && !e.is_test && e.preferred_grain).forEach(e => { tally[e.preferred_grain] = (tally[e.preferred_grain] || 0) + 1; });
     const gt = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g}: ${n}`).join(" · ");
     document.getElementById("tiles").after(Object.assign(document.createElement("p"), { className: "muted", textContent: "Grain picks: " + (gt || "none yet"), id: "grain-tally" }));
 
@@ -114,7 +114,12 @@
       const msg = el("span", { class: "msg", role: "status" });
       const act = (status) => async (ev) => {
         ev.target.disabled = true;
-        try { const r = await rpc("admin_review", { p_key: key, p_claim_id: c.id, p_status: status }); if (r.error) throw 0; await refresh(); }
+        try {
+          const r = await rpc("admin_review", { p_key: key, p_claim_id: c.id, p_status: status });
+          if (r.error === "quiz_score") { msg.className = "msg err"; msg.textContent = "This lesson needs a passing quiz percentage and YouTube name. Ask the baker to complete it again."; ev.target.disabled = false; return; }
+          if (r.error) throw 0;
+          await refresh();
+        }
         catch { msg.className = "msg err"; msg.textContent = "Couldn't save. Try again."; ev.target.disabled = false; }
       };
       return el("div", { class: "queue-item" },
@@ -138,7 +143,7 @@
         el("td", { text: `${e.modules_verified} / ${e.modules_total}` }),
         el("td", { class: "num", text: String(e.verified_points) }),
         el("td", { class: "num", text: String(e.pending_points) }),
-        el("td", {}, e.disqualified ? el("span", { class: "pill rejected", text: "Removed" }) : isQ ? el("span", { class: "pill verified", text: "Qualified" }) : el("span", { class: "muted", text: "In progress" }), el("br"), btn));
+        el("td", {}, e.is_test ? el("span", { class: "pill rejected", text: "Test — excluded" }) : e.disqualified ? el("span", { class: "pill rejected", text: "Removed" }) : isQ ? el("span", { class: "pill verified", text: "Qualified" }) : el("span", { class: "muted", text: "In progress" }), el("br"), btn));
     }) : [el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No one has registered yet." }))]));
 
     document.getElementById("draws").replaceChildren(...data.draws.map(d => el("div", { class: "card winner stack", style: "gap:4px" },
@@ -161,7 +166,7 @@
   document.getElementById("logout").onclick = () => { ss.del("agc_admin"); location.reload(); };
 
   document.getElementById("csv").onclick = () => {
-    const cols = ["full_name", "email", "skool_name", "country", "region", "mill_status", "experience", "preferred_grain", "newsletter", "modules_verified", "modules_total", "verified_points", "pending_points", "disqualified", "created_at"];
+    const cols = ["full_name", "email", "skool_name", "country", "region", "mill_status", "experience", "preferred_grain", "newsletter", "modules_verified", "modules_total", "verified_points", "pending_points", "disqualified", "is_test", "created_at"];
     const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv = [cols.join(","), ...data.entrants.map(e => cols.map(c => esc(e[c])).join(","))].join("\n");
     const a = el("a", { href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })), download: "ancient-grain-challenge-entrants.csv" });
@@ -175,8 +180,9 @@
     go.disabled = true;
     try {
       const kind = document.getElementById("draw-kind").value;
-      const r = await rpc("admin_draw", { p_key: key, p_prize: kind === "weekly" ? "5 lb bag" : "Grand prize: 25 lb bag", p_kind: kind, p_label: document.getElementById("draw-label").value.trim() || null });
+      const r = await rpc("admin_draw", { p_key: key, p_prize: kind === "grand" ? "Grand prize: 25 lb bag" : "5 lb bag", p_kind: kind, p_label: document.getElementById("draw-label").value.trim() || null });
       if (r.error === "empty") { dmsg.className = "msg err"; dmsg.textContent = kind === "weekly" ? "No eligible bakers left for a Friday draw." : "No qualified bakers left in the pool."; }
+      else if (r.error === "prize_limit") { dmsg.className = "msg err"; dmsg.textContent = "All prizes for this drawing type have already been drawn."; }
       else if (r.error) throw 0;
       else { dmsg.className = "msg ok"; dmsg.textContent = `Winner: ${r.name} (${r.entries} entries out of ${r.pool_size} bakers).`; await refresh(); }
     } catch { dmsg.className = "msg err"; dmsg.textContent = "The draw didn't go through. Try again."; }

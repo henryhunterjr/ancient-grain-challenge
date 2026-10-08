@@ -51,5 +51,24 @@ const AGC = (() => {
     box.append(b);
     return box;
   }
-  return { rpc, store, el, LESSONS, videoBox };
+  function quizPercentage(value) {
+    if (typeof value !== "string" && typeof value !== "number") return null;
+    const text = String(value).trim();
+    if (!/^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/.test(text)) return null;
+    const score = Number(text);
+    return Number.isFinite(score) && score >= 0 && score <= 100 ? score : null;
+  }
+  function lessonProof(youtubeName, score) {
+    const name = youtubeName.trim();
+    const percentage = quizPercentage(score);
+    if (!name || name.length > 120 || /[\r\n]| · Score: /i.test(name)) throw new Error("youtube_name");
+    if (percentage === null || percentage < 70) throw new Error("quiz_score");
+    return `YouTube: ${name} · Score: ${percentage}%`;
+  }
+  function taskDescription(task) {
+    return task.key === "m7" && task.description === "Why rye dough does not behave like wheat. Take the quiz, and watch the lesson when the video is posted."
+      ? "Why rye dough does not behave like wheat. Watch the lesson, then take the quiz and pass at 70% or better."
+      : task.description;
+  }
+  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription };
 })();
