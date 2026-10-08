@@ -338,26 +338,19 @@
 
     const rmsg = el("p", { class: "msg", role: "status" });
     const rec = el("form", { novalidate: true },
-      el("p", { class: "muted", text: "Enter the email and full name you registered with, or paste your entry code." }),
-      el("div", { class: "grid2" },
-        el("label", { for: "x-email" }, "Email", el("input", { id: "x-email", type: "email", autocomplete: "email" })),
-        el("label", { for: "x-skool" }, "Full name", el("input", { id: "x-skool", autocomplete: "name" }))),
-      el("label", { for: "x-code" }, el("span", {}, "Or your entry code ", el("span", { class: "hint", text: "(optional)" })), el("input", { id: "x-code", autocomplete: "off" })),
+      el("p", { class: "muted", text: "Paste the entry code you saved when registering. Keep this code private: it gives access to your entry." }),
+      el("label", { for: "x-code" }, "Your entry code — required", el("input", { id: "x-code", required: true, autocomplete: "off", spellcheck: false })),
+      el("p", { class: "muted" }, "Lost your code? If you're still signed in on another device, save it from Your entry there. Otherwise, contact ", el("a", { href: "mailto:henrysbreadkitchen@gmail.com", text: "henrysbreadkitchen@gmail.com" }), " for help. Your email and name alone cannot restore access."),
       el("div", {}, el("button", { type: "submit", class: "ghost" }, "Find my entry")), rmsg);
     rec.addEventListener("submit", async (e) => {
       e.preventDefault();
       const code = document.getElementById("x-code").value.trim();
-      rmsg.className = "msg"; rmsg.textContent = "LookingΓÇª";
+      rmsg.className = "msg"; rmsg.textContent = "Looking…";
       try {
         let token = null;
-        if (code) {
-          const p = /^[0-9a-f-]{36}$/i.test(code) ? await rpc("my_progress", { p_token: code }) : null;
-          if (p) token = code;
-        } else {
-          const r = await rpc("recover", { p_email: document.getElementById("x-email").value, p_skool_name: document.getElementById("x-skool").value });
-          if (r.token) token = r.token;
-        }
-        if (!token) { rmsg.className = "msg err"; rmsg.textContent = "We couldn't find that entry. Check the spelling of your email and full name."; return; }
+        const p = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code) ? await rpc("my_progress", { p_token: code }) : null;
+        if (p) token = code;
+        if (!token) { rmsg.className = "msg err"; rmsg.textContent = "Enter the entry code you saved when registering. If you lost it, contact us for help."; return; }
         store.set(TOKEN_KEY, token); await renderAll();
       } catch { rmsg.className = "msg err"; rmsg.textContent = "We couldn't reach the server. Try again."; }
     });
