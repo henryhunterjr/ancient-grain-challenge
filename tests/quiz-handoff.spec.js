@@ -136,3 +136,11 @@ test('mobile and desktop layout captures',async({page})=>{
   await page.screenshot({path:'test-output/score-mobile.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'test-output/score-desktop.png',fullPage:true});
 });
+test('registration-first launch copy and unchanged seven IDs',async({page})=>{
+  await fixture(page);await page.goto('/');
+  await expect(page.locator('.hero .lede')).toHaveText('Register today. Learn at your own pace. You don’t need to complete a lesson or quiz to sign up.');
+  await expect(page.locator('#how').locator('..').getByText('You don’t need to complete a lesson or quiz to sign up.',{exact:false})).toBeVisible();
+  await expect(page.locator('#me').locator('..').getByText('No Academy membership or payment is needed.',{exact:false})).toBeVisible();
+  await expect(page.locator('.prize-row').getByText('30 winners will each receive one 5-pound bag of grain',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>Object.keys(AGC.LESSONS).sort())).toEqual(['m1','m2','m3','m4','m5','m6','m7']);
+});

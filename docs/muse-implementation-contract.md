@@ -1,6 +1,6 @@
 # Muse quiz handoff implementation contract
 
-Status: registry draft, based on recovery branch `33c9ef9`. **Do not enable the production results buttons until Henry approves publication and the registry receiving page plus migration are confirmed live.** This document is ready to copy to Muse; no message has been sent to Muse. No live integration migration, production entry, newsletter subscription, draw or deployment was performed in this task.
+Status: publication approved by Henry October 8, registry draft based on recovery branch `33c9ef9`. **Do not enable the production results buttons until release coordination is resolved and the registry receiving page plus migration are confirmed live.** This document is ready to copy to Muse; no message has been sent to Muse. No live integration migration, production entry, newsletter subscription, draw or deployment was performed in this task. See `docs/release-coordination-checkpoint.md` for the current blocker.
 
 ## Receiving URL
 
@@ -123,6 +123,6 @@ Browser verification uses headless Chrome at 393 and 1440 CSS pixels, with every
 
 Run browser tests: `npm ci && npm test` (Windows: explicit `C:/Program Files/nodejs/npm.cmd`, or invoke `C:/Program Files/nodejs/node.exe node_modules/@playwright/test/cli.js test`). Run database tests with explicit Python path and `PG_BIN` / `AGC_TEST_PG_PORT` for the disposable local PostgreSQL instance. Run local visual preview with `npm run preview`, then open `http://127.0.0.1:4178/record-score`.
 
-Publication requires Henry's separate approval for this integration, completion/reinspection of the existing fixes, applying this isolated migration, publishing the receiver, then Muse wiring/testing the seven source buttons including the sandbox behavior. The planned production URL is not a live-save guarantee until those steps are complete. No production smoke test should create a newsletter subscription or conduct a draw.
+Henry has approved publication. Release still requires confirmed coordination with the stalled task, completion/reinspection of the existing fixes, applying this isolated migration, publishing the receiver, then Muse wiring/testing the seven source buttons including the sandbox behavior. The planned production URL is not a live-save guarantee until those steps are complete. No production smoke test should create a newsletter subscription or conduct a draw.
 
 This draft branch explicitly disables automatic Vercel deployment for `feature/muse-quiz-score-handoff` in `vercel.json`, preserving the no-deploy instruction while allowing an ordinary draft PR. Other branches retain their current deployment behavior. [Vercel's branch configuration](https://vercel.com/docs/project-configuration/git-configuration) documents this setting. The available tested preview is local with intercepted synthetic API responses, not a hosted/live database preview.
