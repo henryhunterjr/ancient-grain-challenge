@@ -116,6 +116,28 @@ details ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
 
 footer { padding-block: 36px 56px; font-size: .88rem; border-top: 1px solid var(--line); }
 
+/* Partner ads remain full-image links on mouse, keyboard and touch. */
+#partners .wrap > a {
+  display: block;
+  border-radius: 10px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+#partners .wrap > a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(31, 42, 34, .18);
+}
+@media (hover: hover) and (pointer: fine) {
+  #partners .wrap > a:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(31, 42, 34, .18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #partners .wrap > a { transform: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 .site-banner{background:#000;line-height:0}
