@@ -66,9 +66,7 @@ const AGC = (() => {
     return `YouTube: ${name} · Score: ${percentage}%`;
   }
   function taskDescription(task) {
-    return task.key === "m7" && task.description === "Why rye dough does not behave like wheat. Take the quiz, and watch the lesson when the video is posted."
-      ? "Why rye dough does not behave like wheat. Watch the lesson, then take the quiz and pass at 70% or better."
-      : task.description;
+    return task.description;
   }
   return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription };
 })();
