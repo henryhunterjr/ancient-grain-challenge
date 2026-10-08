@@ -1,0 +1,28 @@
+{
+  "name": "registry-score-handoff",
+  "version": "1.0.0",
+  "main": "shared.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "preview": "node tests/serve-preview.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/henryhunterjr/ancient-grain-challenge.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/henryhunterjr/ancient-grain-challenge/issues"
+  },
+  "homepage": "https://github.com/henryhunterjr/ancient-grain-challenge#readme",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
