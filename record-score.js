@@ -2,8 +2,23 @@
   const { el, rpc, store, LESSONS } = AGC, H = QuizHandoff;
   const box = document.getElementById('handoff');
   const incoming = H.parse(location.search);
+  const old = H.read();
+  // An unresolved choice belongs to this history entry, not shared localStorage.
+  // Retain only validated public quiz data, with the original seven-day expiry.
+  const restored = history.state?.quizCandidate;
+  const valid = restored && H.validate(restored.quiz,restored.score,restored.total);
+  let candidate = valid && Number.isFinite(restored.created) && restored.created<=Date.now()
+    && restored.expires===restored.created+H.TTL && restored.expires>Date.now()
+    ? { ...valid, created:restored.created, expires:restored.expires } : null;
+  if (location.search) {
+    candidate = null;
+    if (incoming.result && old && (old.quiz!==incoming.result.quiz || old.score!==incoming.result.score || old.total!==incoming.result.total)) {
+      const created=Date.now(); candidate={...incoming.result,created,expires:created+H.TTL};
+    } else if (incoming.result && !old) H.keep(incoming.result);
+  }
   // Remove quiz data (and any unexpected parameters) before navigation or auth.
-  history.replaceState(null,'',location.pathname);
+  function rememberChoice() { history.replaceState(candidate ? {quizCandidate:candidate} : null,'',location.pathname); }
+  rememberChoice();
   let generation = 0;
   const errorCopy = { entrant: 'Your entry session is no longer valid. Sign in with your private entry code, then retry.',
     quiz: 'This quiz is not one of the seven challenge lessons.', score: 'The score must be a percentage from 0 to 100.',
@@ -16,6 +31,24 @@
 
   async function render() {
     const gen = ++generation, pending = H.read();
+    if (candidate && candidate.expires<=Date.now()) { candidate=null; rememberChoice(); }
+    if (candidate) {
+      const choice=candidate, pendingId=pending?.id;
+      const choose=useNew=>{
+        // A click must refer to the shared result currently shown in this tab.
+        if (candidate!==choice || H.read()?.id!==pendingId) { render(); return; }
+        if (choice.expires<=Date.now()) { render(); return; }
+        if (useNew) H.keep(choice,choice.created);
+        candidate=null; rememberChoice(); render();
+      };
+      box.replaceChildren(message('Choose which result to keep before saving. Your new result stays in this tab until you choose.'),
+        el('p',{text:`New result: ${choice.score}% — ${H.titles[choice.task]}. ${choice.total} questions.`}),
+        el('p',{text:pending ? `Current pending result: ${pending.score}% — ${H.titles[pending.task]}. ${pending.total} questions.` : 'There is no current pending result.'}),
+        el('p',{class:'muted',text:`This choice expires ${new Date(choice.expires).toLocaleString()}.`}),
+        el('button',{type:'button',onclick:()=>choose(true)},`Use new ${choice.score}% result`),
+        el('button',{type:'button',class:'ghost',onclick:()=>choose(false)},pending ? `Keep earlier ${pending.score}% result` : 'Discard new result'));
+      return;
+    }
     if (!pending) {
       box.replaceChildren(message('No pending result. It may have been saved, cleared, or expired after seven days.'),
         el('a',{href:'/#lessons',text:'Take or retake a lesson quiz'})); return;
@@ -41,16 +74,16 @@
     const switchEntry = el('button',{type:'button',class:'ghost',onclick:()=>{ store.del('agc_token'); render(); }},'Use a different entry');
     save.addEventListener('click',async()=>{
       if (save.disabled) return;
-      if (!sameIdentity(token,pending.id)) { render(); return; }
+      if (gen!==generation || !sameIdentity(token,pending.id)) { render(); return; }
       save.disabled=true; msg.textContent='Saving score. Please wait for confirmation.';
       try {
         const r = await rpc('record_quiz_score',{p_token:token,p_quiz_id:pending.quiz,p_score:pending.score,p_total:pending.total});
-        if (!sameIdentity(token,pending.id)) { render(); return; }
+        if (gen!==generation || !sameIdentity(token,pending.id)) { render(); return; }
         if (r.error || r.ok!==true || !Number.isFinite(r.best_score) || r.task_key!==pending.task) throw new Error(r.error || 'confirmation');
         H.clear(pending.id);
         saved(r,token,gen);
       } catch (e) {
-        if (!sameIdentity(token,pending.id)) { render(); return; }
+        if (gen!==generation || !sameIdentity(token,pending.id)) { render(); return; }
         msg.textContent=errorCopy[e.message] || 'Could not confirm the save. Your pending score is kept. Retry safely; repeats cannot add points twice.';
         save.disabled=false;
       }
@@ -94,13 +127,8 @@
   window.addEventListener('storage',e=>{ if (e.key==='agc_token' || e.key===H.KEY) render(); });
   window.addEventListener('pageshow',e=>{ if (e.persisted) render(); });
   // Expiration and tab/session changes are rechecked before every mutation.
-  const old = H.read();
   if (incoming.error) {
     box.replaceChildren(message('This result link is invalid. Return to your quiz and use its results button.'),
       ...(old ? [el('button',{type:'button',onclick:render},'Keep my earlier pending result')] : []));
-  } else if (incoming.result && old && (old.quiz!==incoming.result.quiz || old.score!==incoming.result.score || old.total!==incoming.result.total)) {
-    box.replaceChildren(message('You already have a pending result. Choose which result to keep before saving.'),
-      el('button',{type:'button',onclick:()=>{ H.keep(incoming.result); render(); }},`Use new ${incoming.result.score}% result`),
-      el('button',{type:'button',class:'ghost',onclick:render},`Keep earlier ${old.score}% result`));
-  } else { if (incoming.result && !old) H.keep(incoming.result); render(); }
+  } else render();
 })();

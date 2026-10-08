@@ -38,9 +38,8 @@ const QuizHandoff = (() => {
     }
     return { ...valid, id: pending.id, created: pending.created, expires: pending.expires };
   }
-  function keep(result) {
-    const created = Date.now();
-    memory = { ...result, id: crypto.randomUUID(), created, expires: created+TTL };
+  function keep(result, created = Date.now()) {
+    memory = { ...validate(result.quiz,result.score,result.total), id: crypto.randomUUID(), created, expires: created+TTL };
     try { localStorage.setItem(KEY,JSON.stringify(memory)); durable = true; } catch { durable = false; }
     return memory;
   }
