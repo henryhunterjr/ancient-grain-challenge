@@ -199,4 +199,10 @@ test('registration-first launch copy and unchanged seven IDs',async({page})=>{
   await expect(page.locator('#me').locator('..').getByText('No Academy membership or payment is needed.',{exact:false})).toBeVisible();
   await expect(page.locator('.prize-row').getByText('30 winners will each receive one 5-pound bag of grain',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>Object.keys(AGC.LESSONS).sort())).toEqual(['m1','m2','m3','m4','m5','m6','m7']);
+  await page.getByText('How to qualify and how entries work',{exact:true}).click();
+  await expect(page.getByText('For weekly Friday draws, complete at least one lesson before that drawing. For the final two 5 lb bags and the 25 lb grand prize on December 1, complete all seven lessons by Sunday, November 29, 2026 at 11:59 pm Eastern.',{exact:true})).toBeVisible();
+  await expect(page.getByText('We check the comments for the bakers who get drawn.',{exact:false})).toBeVisible();
+  await page.getByText('Prizes and the drawing',{exact:true}).click();
+  await expect(page.getByText("Winners are announced in the Academy and on this page, and contacted by email. If we don't hear back within 7 days, we draw a new winner.",{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>AGC.taskDescription({key:'m7',description:'Canonical database copy'}))).toBe('Canonical database copy');
 });
