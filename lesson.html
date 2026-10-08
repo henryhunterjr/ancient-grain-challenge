@@ -59,6 +59,10 @@
     if (token) { try { progress = await rpc("my_progress", { p_token: token }); } catch {} }
     const claim = progress?.claims?.find(c => c.task_key === key);
     const done = claim?.status === "verified";
+    let savedScore = null;
+    if (progress) {
+      try { savedScore = (await rpc("my_quiz_results", { p_token: token }))?.find(r => r.task_key === key); } catch {}
+    }
 
     const nav = (cls) => el("nav", { class: "lesson-nav " + cls, "aria-label": "Lesson navigation" },
       prev ? el("a", { href: "lesson?m=" + prev.key, text: "← " + prev.title }) : el("a", { href: "/#lessons", text: "← All lessons" }),
@@ -85,9 +89,11 @@
     } else {
       const ytName = el("input", { placeholder: "Your YouTube name", value: store.get(YT_KEY) || "", "aria-label": "The YouTube name you commented under", style: "flex:1 1 180px" });
       const score = el("input", { id: "quiz-score", type: "number", min: "0", max: "100", step: "any", required: true, inputmode: "decimal", placeholder: "80", "aria-describedby": "quiz-score-hint", style: "flex:1 1 160px" });
+      if (savedScore) { score.value = savedScore.best_score; score.readOnly = true; }
       const btn = el("button", { type: "button", class: "small" }, "I finished this lesson");
       btn.addEventListener("click", async () => {
         const yn = ytName.value.trim();
+        if (store.get(TOKEN_KEY) !== token) { msg.textContent = "Your entry changed. Refresh before saving."; return; }
         if (!yn) { msg.className = "msg err"; msg.textContent = "Add the YouTube name you commented under."; ytName.focus(); return; }
         const percentage = quizPercentage(score.value);
         if (percentage === null) { msg.className = "msg err"; msg.textContent = "Enter your quiz percentage from 0 to 100 (for example, 80)."; score.focus(); return; }
@@ -98,7 +104,10 @@
         btn.disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
         try {
           store.set(YT_KEY, yn);
-          const r = await rpc("claim_task", { p_token: token, p_task_key: key, p_proof: proof });
+          const r = savedScore
+            ? await rpc("record_lesson_comment", { p_token: token, p_task_key: key, p_youtube_name: yn })
+            : await rpc("claim_task", { p_token: token, p_task_key: key, p_proof: proof });
+          if (store.get(TOKEN_KEY) !== token) { msg.textContent = "Your entry changed. Refresh to review progress."; return; }
           if (r.error === "quiz_score") { msg.className = "msg err"; msg.textContent = "Enter a passing quiz percentage from 70 to 100."; btn.disabled = false; return; }
           if (r.error) throw new Error(r.error);
           location.reload();
@@ -106,6 +115,7 @@
       });
       complete = el("div", { class: "card stack" },
         el("h3", { text: "Mark it done" }),
+        savedScore ? el("p", { class: "msg", text: `Browser-reported quiz score saved: ${savedScore.best_score}%. This lesson still needs your YouTube comment details. Retakes cannot lower your saved score.` }) : null,
         claim?.needs_score ? el("p", { class: "msg err", text: "Your earlier check-off is saved, but it needs a passing quiz percentage to count. Enter your YouTube name and score below." }) : null,
         el("ol", { class: "steps-compact" },
           el("li", { text: "Watch the video." }),

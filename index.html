@@ -68,6 +68,8 @@
 <section aria-labelledby="me">
   <div class="wrap stack">
     <h2 id="me">Your entry</h2>
+    <p>Register today, learn later. No lessons are required at signup, and no Academy membership or payment is needed. 30 winners will each receive one 5-pound bag of grain.</p>
+    <div id="pending-quiz"></div>
     <div id="me-body" class="stack"><p class="muted">Loading…</p></div>
   </div>
 </section>
@@ -201,6 +203,7 @@
 </footer>
 
 <script src="shared.js"></script>
+<script src="quiz-handoff.js"></script>
 <script>
 (() => {
   const { rpc, store, el } = AGC;
@@ -432,6 +435,7 @@
   async function renderAll() {
     await loadProgress();
     renderMe(); renderSyllabus(); renderTasks();
+    QuizHandoff.banner();
   }
 
   (async () => {
