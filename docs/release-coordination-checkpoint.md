@@ -1,5 +1,11 @@
 # October 8 publication checkpoint
 
+## Resolved and applied at 07:31 UTC
+
+The original task is independently confirmed idle/completed. A fresh read-only outcome check after the interrupted call confirmed no release changes had committed. All original hashes and the sixteen-claim snapshot still matched. The corrected exact-UTF-8 release bundle was applied as migration `20261008073145 approved_challenge_release_with_muse_score` and verified: eleven private originals, eleven rejected claims with original content intact, exactly two designated tests, recovery execution revoked, three score RPCs installed, five entrants/sixteen claims unchanged and zero draws. Score/comment/best-retake/ownership smoke checks passed transactionally on the existing designated test and were rolled back, leaving zero result rows. PR #1 merged at `efc0bf23ff4d1a73cd57ebf3f0f1c30b5bdc3105`, PR #2 at `ec1ffdbf881cfe167aa5ebce3d1ed6205ac614c1`. Frontend deployment evidence belongs in the final release handoff.
+
+## Historical pre-release checkpoint
+
 Henry approved publication of the prerequisites and Muse score connection. The release owner is this isolated checkout and branch. Other checkouts and repair branches remain untouched.
 
 Before any production mutation, read-only reconciliation found:

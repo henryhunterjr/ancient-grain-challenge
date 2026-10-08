@@ -1,6 +1,6 @@
 # October 7, 2026 authorized release
 
-Henry approved publication, the two confirmed test exclusions, saved-code recovery with identity-checked manual help, and zeroing the eleven existing non-real lesson claims. On October 8 he also approved publishing the separately built Muse score handoff. Module One's replacement video remains pending; no video/mapping or consent requirement change is authorized. The release is currently paused on coordination with the still-inProgress original task; see `release-coordination-checkpoint.md`.
+Henry approved publication, the two confirmed test exclusions, saved-code recovery with identity-checked manual help, and zeroing the eleven existing non-real lesson claims. On October 8 he also approved publishing the separately built Muse score handoff. Module One's replacement video remains pending; no video/mapping or consent requirement change is authorized. The original task is confirmed stopped/completed, and the approved combined database release is applied as migration `20261008073145`; see `release-coordination-checkpoint.md` for the history and verification.
 
 Apply in order: `launch-validation.sql`, `zero-nonreal-claims.sql`, `confirmed-test-flags-proposal.sql`, then `entry-code-recovery-proposal.sql` from recovery PR #2. Refresh live definition/identity/count guards first. Merge PR #1 into main, retarget PR #2 to main and merge its separate recovery change. Both merge operations must pin the reviewed head SHA.
 
