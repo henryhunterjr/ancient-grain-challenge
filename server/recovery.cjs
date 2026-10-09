@@ -1,29 +1,19 @@
 const {randomBytes,createHash,createHmac}=require('node:crypto');
 const {isIP}=require('node:net');
+const {databaseConfiguration,getDatabase}=require('./database.cjs');
 const ORIGIN='https://challenge.bakinggreatbread.com';
-const DATABASE='https://pmhytaaajbhzyldmxmzb.supabase.co';
 const GENERIC='If that email belongs to an entry, a sign-in link will arrive shortly. Check your inbox and spam folder. Links expire after 15 minutes.';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function configuration(env=process.env){
-  const config={enabled:env.AGC_RECOVERY_ENABLED==='true',databaseToken:env.AGC_RECOVERY_DATABASE_TOKEN,
-    publishableKey:env.AGC_RECOVERY_PUBLISHABLE_KEY,mailKey:env.AGC_RECOVERY_RESEND_KEY,
+  const config={enabled:env.AGC_RECOVERY_ENABLED==='true',database:databaseConfiguration(env),mailKey:env.AGC_RECOVERY_RESEND_KEY,
     from:env.AGC_RECOVERY_FROM,pepper:env.AGC_RECOVERY_RATE_PEPPER,origin:ORIGIN};
-  // Refuse broad service-role credentials. Owner must approve a scoped worker.
-  try {const claims=JSON.parse(Buffer.from((config.databaseToken||'').split('.')[1],'base64url'));
-    config.enabled&&=claims.role==='agc_entry_recovery_worker'&&Number.isFinite(claims.exp)&&claims.exp>Date.now()/1000;
-  }catch{config.enabled=false;}
-  config.enabled&&=!!(config.publishableKey&&config.mailKey&&config.from&&!/[\r\n]/.test(config.from)&&config.pepper?.length>=32);
+  config.enabled&&=!!(config.database&&config.mailKey&&config.from&&!/[\r\n]/.test(config.from)&&config.pepper?.length>=32);
   return config;
 }
-function dependencies(config){
+function dependencies(config,providedDatabase){
   return {config,clock:()=>Date.now(),sleep,random:()=>randomBytes(32).toString('base64url'),
-    async rpc(name,body,timeout=2000){
-      const response=await fetch(DATABASE+'/rest/v1/rpc/'+name,{method:'POST',redirect:'error',
-        headers:{'Content-Type':'application/json',apikey:config.publishableKey,Authorization:'Bearer '+config.databaseToken},
-        body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});
-      if(!response.ok)throw new Error('database_unavailable');return response.json();
-    },
+    rpc:(name,body,timeout)=>(providedDatabase||getDatabase(config.database))(name,body,timeout),
     async send(recipient,url,id,timeout){
       const response=await fetch('https://api.resend.com/emails',{method:'POST',redirect:'error',
         headers:{'Content-Type':'application/json',Authorization:'Bearer '+config.mailKey,'Idempotency-Key':id},

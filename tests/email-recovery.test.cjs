@@ -39,25 +39,24 @@ test('redeem hashes a well-formed credential, returns only its confirmed origina
  for(const body of [{credential:'short'},{credential,token},{credential,email:'a@b.invalid'}]){const x=setup();assert.equal((await invoke('redeem',x,body)).code,400);assert.equal(x.calls.length,0);}
  for(const result of [null,{token:'wrong',first_name:'Synthetic'},{token}])assert.equal((await invoke('redeem',setup(async()=>result),{credential})).code,400);
 });
-test('unavailable configuration fails closed; broad credentials cannot enable recovery',async()=>{
+test('unavailable configuration fails closed; JWT credentials cannot enable recovery',async()=>{
  const env={AGC_RECOVERY_ENABLED:'true',AGC_RECOVERY_DATABASE_TOKEN:'x.'+Buffer.from(JSON.stringify({role:'service_role',exp:Date.now()/1000+3600})).toString('base64url')+'.x',
   AGC_RECOVERY_PUBLISHABLE_KEY:'synthetic',AGC_RECOVERY_RESEND_KEY:'synthetic',AGC_RECOVERY_FROM:'test@example.invalid',AGC_RECOVERY_RATE_PEPPER:'synthetic-only'.repeat(4)};
  assert.equal(configuration(env).enabled,false);assert.equal(configuration({}).enabled,false);
  const s=setup();s.dependencies.config.enabled=false;assert.equal((await invoke('request',s,{email:'a@b.invalid'})).code,503);assert.equal(s.calls.length,0);
 });
 
-test('transport adapter uses fixed endpoints, hashes in RPC, private mail body, no redirects and bounded requests',async()=>{
+test('transport delegates hash-only database calls and uses private mail body, no redirects and bounded requests',async()=>{
  const original=global.fetch,calls=[];
  global.fetch=async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({recipient:'synthetic@example.invalid'})};};
  try{
-  const d=dependencies({publishableKey:'synthetic-public',databaseToken:'synthetic-scoped',mailKey:'synthetic-mail',from:'test@example.invalid'});
-  await d.rpc('entry_recovery_issue',{p_token_hash:hash(credential)});
+  const databaseCalls=[],d=dependencies({mailKey:'synthetic-mail',from:'test@example.invalid'},async(...args)=>{databaseCalls.push(args);});
+  await d.rpc('entry_recovery_revoke',{p_token_hash:hash(credential)});
   await d.send('synthetic@example.invalid',ORIGIN+'/recover-entry#r='+credential,hash(credential),500);
-  assert.equal(calls[0].url,'https://pmhytaaajbhzyldmxmzb.supabase.co/rest/v1/rpc/entry_recovery_issue');
-  assert(!calls[0].options.body.includes(credential));assert.equal(calls[0].options.headers.Authorization,'Bearer synthetic-scoped');
-  assert.equal(calls[1].url,'https://api.resend.com/emails');assert.equal(calls[1].options.headers['Idempotency-Key'],hash(credential));
-  const mail=JSON.parse(calls[1].options.body);assert.deepEqual(mail.to,['synthetic@example.invalid']);assert(mail.text.includes(ORIGIN+'/recover-entry#r='+credential));assert(!mail.html);
+  assert(!JSON.stringify(databaseCalls).includes(credential));assert.equal(databaseCalls[0][0],'entry_recovery_revoke');
+  assert.equal(calls[0].url,'https://api.resend.com/emails');assert.equal(calls[0].options.headers['Idempotency-Key'],hash(credential));
+  const mail=JSON.parse(calls[0].options.body);assert.deepEqual(mail.to,['synthetic@example.invalid']);assert(mail.text.includes(ORIGIN+'/recover-entry#r='+credential));assert(!mail.html);
   for(const call of calls){assert.equal(call.options.redirect,'error');assert(call.options.signal instanceof AbortSignal);}
-  global.fetch=async()=>({ok:false});await assert.rejects(d.rpc('entry_recovery_redeem',{}));await assert.rejects(d.send('synthetic@example.invalid','',hash(credential),500));
+  global.fetch=async()=>({ok:false});await assert.rejects(d.send('synthetic@example.invalid','',hash(credential),500));
  }finally{global.fetch=original;}
 });
