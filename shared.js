@@ -14,10 +14,13 @@ const AGC = (() => {
     }
     return res.json();
   }
+  const transient = new Map();
   const store = {
-    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-    del(k) { try { localStorage.removeItem(k); } catch {} },
+    get(k) { if (transient.has(k)) return transient.get(k); try { return localStorage.getItem(k); } catch { return null; } },
+    set(k,v) { try { localStorage.setItem(k,v); if (localStorage.getItem(k)!==v) throw Error(); transient.delete(k); return true; }
+      catch { transient.set(k,v); return false; } },
+    del(k) { try { localStorage.removeItem(k); transient.delete(k); } catch { transient.set(k,null); } },
+    durable(k) { return !transient.has(k); },
   };
   function el(tag, attrs = {}, ...kids) {
     const n = document.createElement(tag);
@@ -68,5 +71,36 @@ const AGC = (() => {
   function taskDescription(task) {
     return task.description;
   }
-  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription };
+  function codePanel(token) {
+    const input=el('textarea',{class:'code',readonly:true,rows:'2','aria-label':'Your private entry code',autocomplete:'off',spellcheck:'false'},token);
+    const message=el('p',{class:'msg',role:'status'});
+    const button=el('button',{type:'button'},'Copy code');
+    button.addEventListener('click',async()=>{
+      let copied=false;
+      try { await navigator.clipboard.writeText(token); copied=true; } catch {
+        input.focus(); input.select(); input.setSelectionRange(0,input.value.length);
+        try { copied=document.execCommand('copy'); } catch {}
+      }
+      message.textContent=copied ? 'Code copied. Keep it private.' : 'Copy is unavailable. Your code is selected. Copy it with your keyboard or touch menu and save it somewhere private.';
+    });
+    return el('div',{class:'stack'},el('p',{text:'Your private entry code. Save it to return on another phone or computer. Anyone with this code can access your entry. Do not post or share it.'}),
+      input,button,message,...(!store.durable('agc_token') ? [el('p',{class:'msg',role:'status',text:'This browser could not save your sign-in. Your code is shown now. Copy or write it down before leaving; this page can keep you signed in only while it remains open.'})] : []));
+  }
+  function emailRecoveryForm() {
+    const email=el('input',{id:'recovery-email',type:'email',autocomplete:'email',required:true,maxlength:'254'});
+    const message=el('p',{class:'msg',role:'status'}),button=el('button',{type:'submit'},'Email me a sign-in link');
+    const form=el('form',{},el('p',{text:'Lost your code? Use the email on your existing entry. The private sign-in link expires after 15 minutes.'}),
+      el('label',{for:'recovery-email'},'Email on your entry',email),button,message);
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();if(button.disabled||!form.reportValidity())return;
+      button.disabled=true;message.textContent='Requesting your sign-in link.';
+      try {
+        const response=await fetch('/api/recovery/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.value.trim()}),referrerPolicy:'no-referrer'});
+        const result=await response.json();if(!response.ok||typeof result.message!=='string')throw Error('request');
+        message.textContent=result.message;
+      } catch { message.textContent='We could not confirm the request. Try again later or use your saved entry code. Your entry and points are still there.'; }
+      button.disabled=false;
+    });return form;
+  }
+  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription, codePanel, emailRecoveryForm };
 })();

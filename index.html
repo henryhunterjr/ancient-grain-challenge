@@ -209,7 +209,7 @@
 (() => {
   const { rpc, store, el } = AGC;
   const TOKEN_KEY = "agc_token";
-  let tasks = [], progress = null;
+  let tasks = [], progress = null, issuedCode = null;
 
   const meBody = document.getElementById("me-body");
   const tasksBox = document.getElementById("tasks");
@@ -253,8 +253,10 @@
     const token = store.get(TOKEN_KEY);
     if (!token) { progress = null; return; }
     try {
-      progress = await rpc("my_progress", { p_token: token });
-      if (!progress) { store.del(TOKEN_KEY); }
+      const result = await rpc("my_progress", { p_token: token });
+      if (store.get(TOKEN_KEY)!==token) { progress=null; return; }
+      progress=result;
+      if (!progress && issuedCode!==token) { store.del(TOKEN_KEY); }
     } catch { progress = null; }
   }
 
@@ -276,14 +278,18 @@
           : p.modules_verified >= 1
             ? "You've completed at least one lesson and qualify for weekly Friday draws if you haven't already won a 5 lb bag. Finish all seven for the December 1 prizes."
             : "Complete one lesson for weekly Friday draws. Complete all seven for the final two 5 lb bags and the grand prize on December 1." })),
-      el("div", { class: "stack", style: "gap:6px" },
-        el("p", { class: "muted", text: "Your entry code. Save it so you can pick up on another phone or computer:" }),
-        el("div", { class: "code", text: store.get(TOKEN_KEY) || "" })),
-      el("div", {}, el("button", { class: "ghost small", type: "button", onclick: () => { store.del(TOKEN_KEY); progress = null; renderAll(); } }, "Not you? Sign out on this device"))
+      AGC.codePanel(store.get(TOKEN_KEY) || ""),
+      el("div", {}, el("button", { class: "ghost small", type: "button", onclick: () => { issuedCode=null; store.del(TOKEN_KEY); progress = null; renderAll(); } }, "Not you? Sign out on this device"))
     ));
   }
 
   function renderRegister() {
+    if (issuedCode && store.get(TOKEN_KEY)===issuedCode) {
+      meBody.replaceChildren(el('div',{class:'card stack'},el('h3',{text:'Your entry code is ready'}),AGC.codePanel(issuedCode),
+        el('p',{class:'msg',role:'status',text:'Your entry was created, but we could not load its progress. Save your private code now, then retry.'}),
+        el('button',{type:'button',onclick:renderAll},'Retry loading my entry'),
+        el('button',{type:'button',class:'ghost',onclick:()=>{issuedCode=null;store.del(TOKEN_KEY);renderAll();}},'Sign out')));return;
+    }
     const msg = el("p", { class: "msg", role: "status" });
     const f = el("form", { novalidate: true },
       el("div", { class: "grid2" },
@@ -334,7 +340,10 @@
           msg.textContent = ({ exists: "That email is already registered. Use \"Already registered?\" below to get back in.", email: "That email doesn't look right. Check it and try again.", name: "Enter your full name and where you're joining from.", rules: "Check the box to agree to the rules.", grain: "Choose the grain you would want." })[r.error] || "Something went wrong. Try again.";
           btn.disabled = false; return;
         }
-        store.set(TOKEN_KEY, r.token);
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.token||'')) throw Error('confirmation');
+        issuedCode=r.token;store.set(TOKEN_KEY, r.token);
+        meBody.replaceChildren(el('div',{class:'card stack'},el('h3',{text:'Your entry code is ready'}),AGC.codePanel(r.token),
+          el('p',{class:'msg',role:'status',text:'Loading your progress. Save your private code now.'})));
         await renderAll();
         document.getElementById("me").scrollIntoView({ behavior: "smooth" });
       } catch (err) { msg.className = "msg err"; msg.textContent = "We couldn't reach the server. Check your connection and try again."; btn.disabled = false; }
@@ -344,7 +353,7 @@
     const rec = el("form", { novalidate: true },
       el("p", { class: "muted", text: "Paste the entry code you saved when registering. Keep this code private: it gives access to your entry." }),
       el("label", { for: "x-code" }, "Your entry code — required", el("input", { id: "x-code", required: true, autocomplete: "off", spellcheck: false })),
-      el("p", { class: "muted" }, "Lost your code? If you're still signed in on another device, save it from Your entry there. Otherwise, contact ", el("a", { href: "mailto:henrysbreadkitchen@gmail.com", text: "henrysbreadkitchen@gmail.com" }), " for help. Your email and name alone cannot restore access."),
+      el("p", { class: "muted" }, "Lost your code? Request a private sign-in link using the email on your entry. You can also save your code from another signed-in device. For help, contact ", el("a", { href: "mailto:henrysbreadkitchen@gmail.com", text: "henrysbreadkitchen@gmail.com" }), ". Your email and name alone cannot restore access."),
       el("div", {}, el("button", { type: "submit", class: "ghost" }, "Find my entry")), rmsg);
     rec.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -361,7 +370,7 @@
 
     meBody.replaceChildren(
       el("div", { class: "card" }, f),
-      el("details", {}, el("summary", { text: "Already registered?" }), el("div", {}, rec)));
+      el("details", {}, el("summary", { text: "Already registered?" }), el("div", {class:'stack'}, AGC.emailRecoveryForm(), rec)));
   }
 
 

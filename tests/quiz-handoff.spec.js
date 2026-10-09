@@ -206,3 +206,97 @@ test('registration-first launch copy and unchanged seven IDs',async({page})=>{
   await expect(page.getByText("Winners are announced in the Academy and on this page, and contacted by email. If we don't hear back within 7 days, we draw a new winner.",{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>AGC.taskDescription({key:'m7',description:'Canonical database copy'}))).toBe('Canonical database copy');
 });
+
+test('private code Copy button has honest clipboard failure fallback',async({page})=>{
+  await fixture(page,A);await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'clipboard',{value:{writeText:async()=>{throw Error('denied')}}});document.execCommand=()=>false;
+  });
+  await page.goto('/#me');await page.getByRole('button',{name:'Copy code',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Your private entry code'})).toHaveValue(A);
+  await expect(page.getByText('Copy is unavailable.',{exact:false})).toBeVisible();
+  expect(await page.getByRole('textbox',{name:'Your private entry code'}).evaluate(i=>i.selectionEnd-i.selectionStart)).toBe(A.length);
+});
+test('newly issued code is immediately visible and kept when storage and progress fail',async({page})=>{
+  let release,started;const ready=new Promise(r=>started=r),held=new Promise(r=>release=r);
+  await fixture(page,null,async name=>{if(name==='my_progress'){started();await held;return null;}});
+  await page.addInitScript(()=>{Storage.prototype.setItem=function(){throw Error('blocked')};Storage.prototype.getItem=function(){throw Error('blocked')};});
+  await page.goto('/#me');await page.locator('#r-name').fill('Synthetic Baker');await page.locator('#r-email').fill('synthetic@example.invalid');
+  await page.locator('#r-skool').selectOption('Other');await page.locator('#r-country').selectOption('United States');await page.locator('#r-grain').selectOption('Rye');await page.locator('#r-news').check();await page.locator('#r-rules').check();
+  await page.getByRole('button',{name:'Register for the challenge'}).click();await ready;
+  await expect(page.getByRole('textbox',{name:'Your private entry code'})).toHaveValue(A);
+  await expect(page.getByText('This browser could not save your sign-in.',{exact:false})).toBeVisible();
+  release();await expect(page.getByRole('button',{name:'Retry loading my entry'})).toBeVisible();
+  await expect(page.getByRole('textbox',{name:'Your private entry code'})).toHaveValue(A);
+  await expect(page.getByRole('button',{name:'Register for the challenge'})).toHaveCount(0);
+});
+test('recovery request is generic and preserves pending quiz without signing in or registering',async({page})=>{
+  const calls=await fixture(page);await page.goto(link());await page.getByRole('link',{name:'Register or sign in'}).click();
+  const pending=await page.evaluate(()=>localStorage.getItem('agc_pending_quiz_v1'));
+  await page.route('**/api/recovery/request',route=>route.fulfill({json:{message:'If that email belongs to an entry, a sign-in link will arrive shortly.'}}));
+  await page.getByText('Already registered?',{exact:true}).click();await page.locator('#recovery-email').fill('synthetic@example.invalid');
+  await page.getByRole('button',{name:'Email me a sign-in link'}).click();
+  await expect(page.getByText('If that email belongs to an entry, a sign-in link will arrive shortly.',{exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>localStorage.getItem('agc_pending_quiz_v1'))).toBe(pending);
+  expect(await page.evaluate(()=>localStorage.getItem('agc_token'))).toBeNull();expect(calls.some(c=>c.name==='register')).toBe(false);
+});
+test('recovery link strips credential, waits for click, and requires explicit entry switch while preserving pending score',async({page,context})=>{
+  const calls=await fixture(page);await page.goto(link());await page.evaluate(t=>localStorage.setItem('agc_token',t),A);
+  const credential='a'.repeat(43);let redeems=0;
+  await page.route('**/api/recovery/redeem',async route=>{redeems++;expect(route.request().postDataJSON()).toEqual({credential});await route.fulfill({json:{token:B,first_name:'Bob'}});});
+  await page.goto('/recover-entry#r='+credential);
+  expect(page.url()).not.toContain(credential);expect(redeems).toBe(0);
+  await page.getByRole('button',{name:'Continue to recover my entry'}).click();
+  await expect(page.getByRole('textbox',{name:'Your private entry code'})).toHaveValue(B);
+  expect(await page.evaluate(()=>localStorage.getItem('agc_token'))).toBe(A);
+  const other=await context.newPage();await fixture(other);await other.goto('/');await other.evaluate(()=>localStorage.removeItem('agc_token'));
+  await page.getByRole('button',{name:'Use my recovered entry for Bob'}).click();
+  await expect(page.getByRole('button',{name:'Confirm switch to Bob'})).toBeVisible();
+  expect(await page.evaluate(()=>localStorage.getItem('agc_token'))).toBeNull();
+  await page.getByRole('button',{name:'Confirm switch to Bob'}).click();
+  await expect(page.getByRole('heading',{name:'Signed in as Bob'})).toBeVisible();
+  await page.getByRole('link',{name:'Return to record my pending score'}).click();
+  await expect(page.getByRole('button',{name:'Save score for Bob'})).toBeVisible();
+  expect(calls.some(c=>['record_quiz_score','record_lesson_comment','register'].includes(c.name))).toBe(false);
+  expect(redeems).toBe(1);
+});
+test('expired or failed recovery keeps pending data and offers a fresh request',async({page})=>{
+  await fixture(page);await page.goto(link());const pending=await page.evaluate(()=>localStorage.getItem('agc_pending_quiz_v1'));
+  await page.route('**/api/recovery/redeem',route=>route.fulfill({status:400,json:{error:'link'}}));
+  await page.goto('/recover-entry#r='+'b'.repeat(43));await page.getByRole('button',{name:'Continue to recover my entry'}).click();
+  await expect(page.getByText('This sign-in link is invalid, expired, or already used.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Email me a sign-in link'})).toBeVisible();
+  expect(await page.evaluate(()=>localStorage.getItem('agc_pending_quiz_v1'))).toBe(pending);
+  expect(await page.evaluate(()=>localStorage.getItem('agc_token'))).toBeNull();
+});
+
+test('recovery double click sends once; blocked storage shows private code with no misleading navigation',async({page})=>{
+  await fixture(page);let release,started;const ready=new Promise(r=>started=r),held=new Promise(r=>release=r);let redeems=0;
+  await page.addInitScript(()=>{Storage.prototype.setItem=function(){throw Error('blocked')};});
+  await page.route('**/api/recovery/redeem',async route=>{redeems++;started();await held;await route.fulfill({json:{token:B,first_name:'Bob'}});});
+  await page.goto('/recover-entry#r='+'c'.repeat(43));
+  await page.getByRole('button',{name:'Continue to recover my entry'}).evaluate(button=>{button.click();button.click();});await ready;expect(redeems).toBe(1);release();
+  await page.getByRole('button',{name:'Use my recovered entry for Bob'}).click();
+  await expect(page.getByRole('textbox',{name:'Your private entry code'})).toHaveValue(B);
+  await expect(page.getByText('This browser could not save your sign-in.',{exact:false})).toBeVisible();
+  expect(await page.evaluate(()=>AGC.store.get('agc_token'))).toBe(B);
+  await expect(page.getByRole('link',{name:'Go to my entry',exact:true})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-output/email-recovery-mobile.png',fullPage:true});
+  await page.setViewportSize({width:320,height:800});
+  expect(await page.getByRole('textbox',{name:'Your private entry code'}).evaluate(i=>i.scrollHeight<=i.clientHeight)).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:'test-output/email-recovery-narrow.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'test-output/email-recovery-desktop.png',fullPage:true});
+  await page.emulateMedia({colorScheme:'dark'});await page.screenshot({path:'test-output/email-recovery-dark.png',fullPage:true});
+});
+
+test('recovery credential never appears in GET requests or browser storage and network failure offers fresh link',async({page})=>{
+  await fixture(page);const credential='d'.repeat(43),requests=[];page.on('request',r=>requests.push({url:r.url(),method:r.method()}));
+  await page.route('**/api/recovery/redeem',route=>route.abort());await page.goto('/recover-entry#r='+credential);
+  expect(requests.every(r=>!r.url.includes(credential))).toBe(true);
+  expect(await page.evaluate(c=>JSON.stringify({...localStorage,...sessionStorage}).includes(c),credential)).toBe(false);
+  expect(requests.every(r=>r.url.startsWith('http://127.0.0.1:4178/'))).toBe(true);
+  await page.getByRole('button',{name:'Continue to recover my entry'}).click();
+  await expect(page.getByText('We could not confirm recovery.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Email me a sign-in link'})).toBeVisible();
+});
