@@ -1,5 +1,7 @@
 # Synthetic argument/guard checks only. Never invoke the real psql or read secrets.
 $ErrorActionPreference='Stop'
+# Reproduce the reported unavailable cmdlet without changing OS/module settings.
+function Get-FileHash { throw 'This regression must not depend on Get-FileHash.' }
 $taskRepo=Split-Path $PSScriptRoot -Parent
 $taskOutput=Join-Path $taskRepo 'test-output\helper-tls'
 New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
@@ -23,4 +25,13 @@ $global:agcHelperTestArguments=$null
 try { & $taskHelper -PoolerHost 'aws-0-us-east-1.pooler.supabase.com' -RootCertificate (Join-Path $taskOutput 'missing-public-ca.crt') -PsqlPath $taskMock *> $null; throw 'Missing certificate should fail before credential prompts' }
 catch { if($_.Exception.Message -notlike '*does not exist*'){throw} }
 if($null -ne $global:agcHelperTestArguments){throw 'Missing CA invoked psql'}
-Write-Output 'Helper TLS argument, masked-prompt, single-transaction, system-store and missing-CA guards passed; real psql was never invoked.'
+$taskTampered=Join-Path $taskOutput 'tampered-helper'
+New-Item -ItemType Directory -Path (Join-Path $taskTampered 'certificates') -Force | Out-Null
+$taskTamperedHelper=Join-Path $taskTampered 'set-recovery-password.ps1'
+Copy-Item -LiteralPath $taskHelper -Destination $taskTamperedHelper -Force
+Set-Content -LiteralPath (Join-Path $taskTampered 'certificates\prod-ca-2021.crt') -Encoding ASCII -Value 'Altered public CA fixture'
+$global:agcHelperTestArguments=$null
+try { & $taskTamperedHelper -PoolerHost 'aws-0-us-east-1.pooler.supabase.com' -PsqlPath $taskMock *> $null; throw 'Modified bundled CA should fail before credential prompts' }
+catch { if($_.Exception.Message -notlike '*Bundled public CA differs*'){throw} }
+if($null -ne $global:agcHelperTestArguments){throw 'Modified bundled CA invoked psql'}
+Write-Output 'Helper TLS, masked prompts, transaction, .NET checksum without Get-FileHash, and modified/missing-CA guards passed; real psql was never invoked.'

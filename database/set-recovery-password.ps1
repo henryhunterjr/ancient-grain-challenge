@@ -14,7 +14,18 @@ if(-not $RootCertificate){
   # Public file downloaded from the official Supabase dashboard certificate URL.
   # Pin its reviewed PEM bytes; fail before asking for any private credentials.
   $expectedHash='700723581420DD1AC98FD7E9AC529F0EF210EADCAF87FC868A3AD7D114C2F3B7'
-  if((Get-FileHash -Algorithm SHA256 -LiteralPath $RootCertificate).Hash -ne $expectedHash){throw 'Bundled public CA differs from its reviewed source. Stop and verify the certificate; do not weaken TLS.'}
+  # Use .NET directly: Get-FileHash is unavailable in some owner shell sessions.
+  # This verifies the same SHA-256 pin without relying on cmdlet/module loading.
+  $taskCAHasher=[System.Security.Cryptography.SHA256]::Create()
+  $taskCAStream=$null
+  try {
+    $taskCAStream=[System.IO.File]::OpenRead($RootCertificate)
+    $actualHash=[System.BitConverter]::ToString($taskCAHasher.ComputeHash($taskCAStream)).Replace('-','')
+  } finally {
+    if($taskCAStream){$taskCAStream.Dispose()}
+    $taskCAHasher.Dispose()
+  }
+  if($actualHash -cne $expectedHash){throw 'Bundled public CA differs from its reviewed source. Stop and verify the certificate; do not weaken TLS.'}
 }
 $certPath=(Resolve-Path -LiteralPath $RootCertificate).Path.Replace('\','/')
 if($certPath.Contains("'")){throw 'Use a public CA certificate file path without an apostrophe.'}
