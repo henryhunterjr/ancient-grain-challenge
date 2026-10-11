@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "buildCommand": "node scripts/check-recovery-runtime.cjs",
   "git": { "deploymentEnabled": { "feature/muse-quiz-score-handoff": false, "feature/email-entry-recovery": false } },
   "headers": [
     {
