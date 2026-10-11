@@ -8,15 +8,17 @@ Henry has already saved the restricted Resend Sending key, `noreply@bakinggreatb
 
 The installed Windows PostgreSQL client reports 17rc1. Its `sslrootcert=system` path fails with `SSL error: unregistered scheme`, reproduced without any password. The helper now uses the reviewed public Supabase CA file and retains `sslmode=verify-full`, certificate and hostname verification, and a TLS 1.2 minimum. It changes no Windows trust settings.
 
-Run this exact nonsecret command in Henry's local PowerShell:
+The helper also supports a fixed, project-specific direct endpoint. After the owner approves this scoped setup, run this nonsecret command in Henry's local PowerShell:
 
 ```powershell
-& 'C:\Users\henry\Documents\Codex\2026-10-07\task-3\registry-score-handoff\database\set-recovery-password.ps1' -PoolerHost 'aws-0-us-east-1.pooler.supabase.com'
+& 'C:\Users\henry\Documents\Codex\2026-10-07\task-3\registry-score-handoff\database\set-recovery-password.ps1' -Direct
 ```
 
 Enter Henry's existing project-owner database password only at the masked connection prompt. At the next two masked prompts, enter a NEW unique random password of at least 32 characters from his password manager. No password belongs in chat, command arguments, Vercel's public Config values, or this repository.
 
-The helper uses session-pooler port 5432 only for this short owner setup. PostgreSQL's `\password` sends a SCRAM verifier rather than cleartext password SQL. Password setup, worker LOGIN, and a maximum 90-day expiry commit in one transaction. The helper does not deploy or enable recovery. Record the expiry privately and rotate before it. On failure, keep recovery disabled; inspect nonsecret role metadata before retrying rather than assuming that a failed connection or uncertain commit rolled back.
+Direct mode fixes the host to `db.pmhytaaajbhzyldmxmzb.supabase.co`, port 5432, and owner username `postgres`. It requires direct network reachability and retains the same pinned public CA and full TLS verification. The alternative `-PoolerHost 'aws-0-us-east-1.pooler.supabase.com'` mode retains the session pooler and qualified username. These parameter sets are mutually exclusive. Direct mode bypasses shared-pooler authentication; a direct login succeeding does not establish why a pooler login failed.
+
+PostgreSQL's `\password` sends a SCRAM verifier rather than cleartext password SQL. Password setup, worker LOGIN, and a maximum 90-day expiry commit in one transaction. Both modes explicitly disable the pager, avoiding a missing Windows pager command without changing OS settings. The helper does not deploy or enable recovery. Record the expiry privately and rotate before it. On failure, keep recovery disabled; inspect nonsecret role metadata before retrying rather than assuming that a failed connection or uncertain commit rolled back.
 
 If the existing owner password is unavailable, stop for an already authorized database owner to provision this dedicated role privately using their own existing access. Do not extract or reset existing credentials.
 
