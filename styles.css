@@ -84,6 +84,9 @@ button:disabled { opacity: .55; cursor: default; }
 .meter { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .meter > span { display: block; height: 100%; background: var(--field); border-radius: 99px; transition: width .4s ease; }
 .code { font-family: var(--mono); font-size: .85rem; word-break: break-all; background: var(--bg); border: 1px dashed var(--line); padding: 8px 10px; border-radius: 6px; }
+.entry-code-panel { gap: 10px; padding-block: 6px; }
+.entry-code { font-size: .95rem; line-height: 1.5; min-height: 76px; resize: vertical; }
+.entry-code-copy { min-height: 44px; align-self: flex-start; }
 .status-line { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; }
 .big { font: 700 2.2rem/1 var(--display); font-variant-numeric: tabular-nums; }
 

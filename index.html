@@ -209,7 +209,7 @@
 (() => {
   const { rpc, store, el } = AGC;
   const TOKEN_KEY = "agc_token";
-  let tasks = [], progress = null;
+  let tasks = [], progress = null, progressCode = null, issuedCode = null;
 
   const meBody = document.getElementById("me-body");
   const tasksBox = document.getElementById("tasks");
@@ -251,19 +251,35 @@
 
   async function loadProgress() {
     const token = store.get(TOKEN_KEY);
-    if (!token) { progress = null; return; }
+    if (!token) { progress = null; progressCode = null; return; }
     try {
-      progress = await rpc("my_progress", { p_token: token });
-      if (!progress) { store.del(TOKEN_KEY); }
-    } catch { progress = null; }
+      const result = await rpc("my_progress", { p_token: token });
+      if (store.get(TOKEN_KEY) !== token) { progress = null; progressCode = null; return; }
+      progress = result; progressCode = result ? token : null;
+      if (!progress && issuedCode !== token) { store.del(TOKEN_KEY); }
+    } catch { progress = null; progressCode = null; }
+  }
+
+  function renderSavedCode(message) {
+    const token = store.get(TOKEN_KEY);
+    const retry = el('button', { type: 'button', class: 'ghost' }, 'Retry loading my entry');
+    retry.addEventListener('click', async () => { retry.disabled = true; await renderAll(); });
+    meBody.replaceChildren(el('div', { class: 'card stack' },
+      el('h3', { text: issuedCode === token ? 'Your entry code is ready' : 'Your saved entry code' }),
+      AGC.codePanel(token), el('p', { class: 'msg', role: 'status', text: message }), retry));
   }
 
   function renderMe() {
-    if (!progress) { renderRegister(); return; }
+    if (!progress || progressCode !== store.get(TOKEN_KEY)) {
+      if (store.get(TOKEN_KEY)) { renderSavedCode('We could not load your progress yet. Your code is still available above; save it, then retry.'); }
+      else { renderRegister(); }
+      return;
+    }
     const p = progress;
     const pct = p.modules_total ? Math.round(100 * p.modules_verified / p.modules_total) : 0;
     meBody.replaceChildren(el("div", { class: "card stack" },
       el("h3", { text: `Welcome back, ${p.first_name}.` }),
+      AGC.codePanel(progressCode),
       el("div", { class: "status-line" },
         el("span", { class: "big", text: String(p.verified_points) }),
         el("span", { class: "muted", text: `verified points` }),
@@ -276,10 +292,7 @@
           : p.modules_verified >= 1
             ? "You've completed at least one lesson and qualify for weekly Friday draws if you haven't already won a 5 lb bag. Finish all seven for the December 1 prizes."
             : "Complete one lesson for weekly Friday draws. Complete all seven for the final two 5 lb bags and the grand prize on December 1." })),
-      el("div", { class: "stack", style: "gap:6px" },
-        el("p", { class: "muted", text: "Your entry code. Save it so you can pick up on another phone or computer:" }),
-        el("div", { class: "code", text: store.get(TOKEN_KEY) || "" })),
-      el("div", {}, el("button", { class: "ghost small", type: "button", onclick: () => { store.del(TOKEN_KEY); progress = null; renderAll(); } }, "Not you? Sign out on this device"))
+      el("div", {}, el("button", { class: "ghost small", type: "button", onclick: () => { store.del(TOKEN_KEY); progress = null; progressCode = null; issuedCode = null; renderAll(); } }, "Not you? Sign out on this device"))
     ));
   }
 
@@ -334,7 +347,9 @@
           msg.textContent = ({ exists: "That email is already registered. Use \"Already registered?\" below to get back in.", email: "That email doesn't look right. Check it and try again.", name: "Enter your full name and where you're joining from.", rules: "Check the box to agree to the rules.", grain: "Choose the grain you would want." })[r.error] || "Something went wrong. Try again.";
           btn.disabled = false; return;
         }
-        store.set(TOKEN_KEY, r.token);
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.token || '')) throw Error('confirmation');
+        issuedCode = r.token; store.set(TOKEN_KEY, r.token);
+        renderSavedCode('Your entry was created. Save your code now while we load your progress.');
         await renderAll();
         document.getElementById("me").scrollIntoView({ behavior: "smooth" });
       } catch (err) { msg.className = "msg err"; msg.textContent = "We couldn't reach the server. Check your connection and try again."; btn.disabled = false; }
@@ -355,7 +370,7 @@
         const p = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code) ? await rpc("my_progress", { p_token: code }) : null;
         if (p) token = code;
         if (!token) { rmsg.className = "msg err"; rmsg.textContent = "Enter the entry code you saved when registering. If you lost it, contact us for help."; return; }
-        store.set(TOKEN_KEY, token); await renderAll();
+        store.set(TOKEN_KEY, token); issuedCode = null; await renderAll();
       } catch { rmsg.className = "msg err"; rmsg.textContent = "We couldn't reach the server. Try again."; }
     });
 
@@ -438,6 +453,14 @@
     renderMe(); renderSyllabus(); renderTasks();
     QuizHandoff.banner();
   }
+
+  window.addEventListener('storage', event => {
+    if (event.key !== TOKEN_KEY && event.key !== null) return;
+    progress = null; progressCode = null; issuedCode = null;
+    renderMe(); renderAll();
+  });
+
+  if (store.get(TOKEN_KEY)) renderSavedCode('Your code is available while we load your entry.');
 
   (async () => {
     try { tasks = await rpc("get_tasks"); } catch { tasks = []; }

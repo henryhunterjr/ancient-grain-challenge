@@ -1,4 +1,5 @@
 test-output/
+.vercel/
 *.log
 node_modules/
 playwright-report/
