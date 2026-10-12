@@ -24,10 +24,16 @@ test('configured secrets stay in-process; check is read-only, scoped, TLS verifi
  assert.equal(f.calls[0],'BEGIN READ ONLY');assert.equal(f.calls.at(-1),'ROLLBACK');assert.deepEqual(f.calls[2].values,['agc_entry_recovery_worker']);
  assert(!JSON.stringify(f.calls).includes(password));assert(!JSON.stringify(f.calls).includes(pepper));assert.deepEqual(f.releases,[true]);assert.equal(f.ended,1);
 });
-test('missing or reused private configuration fails before any network connection',async()=>{
- for(const change of [{AGC_RECOVERY_RATE_PEPPER:''},{AGC_RECOVERY_RATE_PEPPER:password},{AGC_RECOVERY_DB_CA:''}]){
+test('missing private configuration fails before any network connection',async()=>{
+ for(const change of [{AGC_RECOVERY_RATE_PEPPER:''},{AGC_RECOVERY_DB_CA:''}]){
   const f=fixture();await assert.rejects(checkRuntime({...env,...change},f.FakePool),error=>error.message==='configuration_incomplete');assert.equal(f.ended,0);
  }
+});
+test('read-only authentication is independently checked but reused secrets still fail the release gate',async()=>{
+ const f=fixture();let checked=0;
+ await assert.rejects(checkRuntime({...env,AGC_RECOVERY_RATE_PEPPER:password},f.FakePool,()=>{checked++;}),
+  error=>error.message==='configuration_incomplete'&&error.failedChecks.join()==='AGC_RECOVERY_RATE_PEPPER_separate');
+ assert.equal(checked,1);assert.equal(f.calls[0],'BEGIN READ ONLY');assert.equal(f.calls.at(-1),'ROLLBACK');assert.deepEqual(f.releases,[true]);assert.equal(f.ended,1);
 });
 test('wrong role or broader privileges fail closed and destroy the connection',async()=>{
  for(const change of [{identity_ok:false},{role_ok:false},{memberships:1},{can_create:true},{tables:1},{public_functions:1},{functions:[...permissions.functions,'take_limit']}]){

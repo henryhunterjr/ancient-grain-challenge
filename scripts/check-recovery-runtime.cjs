@@ -32,13 +32,14 @@ const configurationChecks=env=>({
  AGC_RECOVERY_ENABLED_flag:['false','true'].includes(env.AGC_RECOVERY_ENABLED)
 });
 function failure(reason,failedChecks=[]){const error=Error('runtime_check_failed');error.safeReason=reason;error.failedChecks=failedChecks;return error;}
-async function checkRuntime(env,PoolType=Pool){
+async function checkRuntime(env,PoolType=Pool,onDatabaseChecked=()=>{}){
  let pool,client;
  try{
   // Validate complete delivery configuration without changing the actual flag.
   const ready=configuration({...env,AGC_RECOVERY_ENABLED:'true'});
   const failedChecks=Object.entries(configurationChecks(env)).filter(([,passed])=>!passed).map(([name])=>name);
-  if(!ready.enabled||failedChecks.length)throw failure('configuration_incomplete',failedChecks);
+  const structuralFailures=failedChecks.filter(name=>name!=='AGC_RECOVERY_RATE_PEPPER_separate');
+  if(!ready.enabled||structuralFailures.length)throw failure('configuration_incomplete',structuralFailures);
   pool=new PoolType({...poolOptions(ready.database),query_timeout:2000});pool.on('error',()=>{});
   client=await pool.connect();
   if(client.connection?.stream?.encrypted!==true||client.connection.stream.authorized!==true)throw failure('tls_verification_failed');
@@ -49,6 +50,10 @@ async function checkRuntime(env,PoolType=Pool){
   if(!row||row.identity_ok!==true||row.role_ok!==true||row.memberships!==0||row.can_create!==false
     ||row.tables!==0||row.public_functions!==0||JSON.stringify(row.functions)!==JSON.stringify(expectedFunctions))throw failure('permission_check_failed');
   await client.query('ROLLBACK');
+  onDatabaseChecked();
+  // A read-only login check can finish independently. Reused secrets still
+  // fail the release gate before any READY deployment, promotion or email.
+  if(failedChecks.length)throw failure('configuration_incomplete',failedChecks);
   return {configuration:true,poolerAuthentication:true,verifiedTLS:true,leastPrivilege:true,deliveryEnabled:env.AGC_RECOVERY_ENABLED==='true'};
  }catch(error){
   const safe=['configuration_incomplete','tls_verification_failed','permission_check_failed'].includes(error.safeReason)?error.safeReason
@@ -62,7 +67,8 @@ async function checkRuntime(env,PoolType=Pool){
  }
 }
 if(require.main===module){
- checkRuntime(process.env).then(()=>console.log('AGC_RECOVERY_RUNTIME_CHECK passed: configuration, scoped pooler authentication, verified TLS and least privilege; no writes or emails.'))
+ checkRuntime(process.env,Pool,()=>console.log('AGC_RECOVERY_DATABASE_CHECK passed: scoped pooler authentication, verified TLS and least privilege; read-only transaction rolled back.'))
+  .then(()=>console.log('AGC_RECOVERY_RUNTIME_CHECK passed: configuration, scoped pooler authentication, verified TLS and least privilege; no writes or emails.'))
   .catch(error=>{console.error('AGC_RECOVERY_RUNTIME_CHECK failed: '+error.message+(error.failedChecks?.length?' ['+error.failedChecks.join(', ')+']':''));process.exitCode=1;});
 }
 module.exports={checkRuntime};
