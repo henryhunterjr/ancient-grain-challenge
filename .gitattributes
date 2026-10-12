@@ -1,0 +1,2 @@
+# Preserve the reviewed public certificate's pinned PEM bytes on Windows.
+database/certificates/prod-ca-2021.crt text eol=lf

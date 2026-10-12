@@ -185,3 +185,5 @@ html{scroll-padding-top:56px}
 
 .steps-compact{margin:0;padding-left:1.3rem;display:grid;gap:6px}
 .footer-links{font-weight:600}
+.recovery-page{padding-block:40px}
+textarea.code{resize:none}

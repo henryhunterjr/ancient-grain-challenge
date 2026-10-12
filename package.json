@@ -24,5 +24,8 @@
   "description": "",
   "devDependencies": {
     "@playwright/test": "1.56.1"
+  },
+  "dependencies": {
+    "pg": "8.23.1"
   }
 }

@@ -4,6 +4,6 @@ docs/
 test-output/
 *.log
 node_modules
-package*.json
 playwright.config.js
 supabase
+.env*
