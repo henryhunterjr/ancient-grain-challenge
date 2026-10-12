@@ -21,14 +21,24 @@ const permissionsSQL=`SELECT
     WHERE n.nspname='public' AND has_function_privilege(current_user,p.oid,'EXECUTE')) AS public_functions,
   (SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
     WHERE n.nspname='agc_entry_recovery' AND has_function_privilege(current_user,p.oid,'EXECUTE')) AS functions`;
-function failure(reason){const error=Error('runtime_check_failed');error.safeReason=reason;return error;}
+const configurationChecks=env=>({
+ AGC_RECOVERY_DB_HOST_format:/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(env.AGC_RECOVERY_DB_HOST||''),
+ AGC_RECOVERY_DB_PASSWORD_min32:typeof env.AGC_RECOVERY_DB_PASSWORD==='string'&&env.AGC_RECOVERY_DB_PASSWORD.length>=32,
+ AGC_RECOVERY_DB_CA_PEM:typeof env.AGC_RECOVERY_DB_CA==='string'&&/^-----BEGIN CERTIFICATE-----[\s\S]+-----END CERTIFICATE-----\s*$/.test(env.AGC_RECOVERY_DB_CA),
+ AGC_RECOVERY_RESEND_KEY_present:!!env.AGC_RECOVERY_RESEND_KEY,
+ AGC_RECOVERY_FROM_format:!!env.AGC_RECOVERY_FROM&&!/[\r\n]/.test(env.AGC_RECOVERY_FROM),
+ AGC_RECOVERY_RATE_PEPPER_min32:typeof env.AGC_RECOVERY_RATE_PEPPER==='string'&&env.AGC_RECOVERY_RATE_PEPPER.length>=32,
+ AGC_RECOVERY_RATE_PEPPER_separate:env.AGC_RECOVERY_RATE_PEPPER!==env.AGC_RECOVERY_DB_PASSWORD&&env.AGC_RECOVERY_RATE_PEPPER!==env.AGC_RECOVERY_RESEND_KEY,
+ AGC_RECOVERY_ENABLED_flag:['false','true'].includes(env.AGC_RECOVERY_ENABLED)
+});
+function failure(reason,failedChecks=[]){const error=Error('runtime_check_failed');error.safeReason=reason;error.failedChecks=failedChecks;return error;}
 async function checkRuntime(env,PoolType=Pool){
  let pool,client;
  try{
   // Validate complete delivery configuration without changing the actual flag.
   const ready=configuration({...env,AGC_RECOVERY_ENABLED:'true'});
-  if(!ready.enabled||!ready.database.ca||!['false','true'].includes(env.AGC_RECOVERY_ENABLED)
-    ||ready.pepper===ready.database.password||ready.pepper===ready.mailKey)throw failure('configuration_incomplete');
+  const failedChecks=Object.entries(configurationChecks(env)).filter(([,passed])=>!passed).map(([name])=>name);
+  if(!ready.enabled||failedChecks.length)throw failure('configuration_incomplete',failedChecks);
   pool=new PoolType({...poolOptions(ready.database),query_timeout:2000});pool.on('error',()=>{});
   client=await pool.connect();
   if(client.connection?.stream?.encrypted!==true||client.connection.stream.authorized!==true)throw failure('tls_verification_failed');
@@ -43,7 +53,9 @@ async function checkRuntime(env,PoolType=Pool){
  }catch(error){
   const safe=['configuration_incomplete','tls_verification_failed','permission_check_failed'].includes(error.safeReason)?error.safeReason
     :error.code==='28P01'?'authentication_rejected':'connection_or_query_failed';
-  throw Error(safe);
+  const result=Error(safe);
+  if(safe==='configuration_incomplete')result.failedChecks=error.failedChecks;
+  throw result;
  }finally{
   if(client)client.release(true);
   if(pool)await pool.end().catch(()=>{});
@@ -51,6 +63,6 @@ async function checkRuntime(env,PoolType=Pool){
 }
 if(require.main===module){
  checkRuntime(process.env).then(()=>console.log('AGC_RECOVERY_RUNTIME_CHECK passed: configuration, scoped pooler authentication, verified TLS and least privilege; no writes or emails.'))
-  .catch(error=>{console.error('AGC_RECOVERY_RUNTIME_CHECK failed: '+error.message);process.exitCode=1;});
+  .catch(error=>{console.error('AGC_RECOVERY_RUNTIME_CHECK failed: '+error.message+(error.failedChecks?.length?' ['+error.failedChecks.join(', ')+']':''));process.exitCode=1;});
 }
 module.exports={checkRuntime};
