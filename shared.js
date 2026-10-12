@@ -14,10 +14,13 @@ const AGC = (() => {
     }
     return res.json();
   }
+  const transient = new Map();
   const store = {
-    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-    del(k) { try { localStorage.removeItem(k); } catch {} },
+    get(k) { if (transient.has(k)) return transient.get(k); try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); if (localStorage.getItem(k) !== v) throw Error(); transient.delete(k); return true; }
+      catch { transient.set(k, v); return false; } },
+    del(k) { try { localStorage.removeItem(k); transient.delete(k); } catch { transient.set(k, null); } },
+    durable(k) { try { return !!store.get(k) && localStorage.getItem(k) === store.get(k); } catch { return false; } },
   };
   function el(tag, attrs = {}, ...kids) {
     const n = document.createElement(tag);
@@ -68,5 +71,27 @@ const AGC = (() => {
   function taskDescription(task) {
     return task.description;
   }
-  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription };
+  function codePanel(token) {
+    const input = el('textarea', { class: 'code entry-code', readonly: true, rows: '2', 'aria-label': 'Your private entry code', autocomplete: 'off', spellcheck: 'false' }, token);
+    const message = el('p', { class: 'msg', role: 'status', 'aria-live': 'polite' });
+    const button = el('button', { type: 'button', class: 'entry-code-copy' }, 'Copy code');
+    button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      if (store.get('agc_token') !== token) { message.textContent = 'Your entry changed. Return to Your entry to copy the current code.'; return; }
+      button.disabled = true;
+      let copied = false;
+      try { await navigator.clipboard.writeText(token); copied = true; } catch {
+        input.focus(); input.select(); input.setSelectionRange(0, input.value.length);
+        try { copied = document.execCommand('copy'); } catch {}
+      }
+      message.className = 'msg' + (copied ? ' ok' : '');
+      message.textContent = copied ? 'Code copied. Save it somewhere private.' : 'Automatic copy is unavailable. Your code is selected; copy it manually or write it down.';
+      button.disabled = false;
+    });
+    return el('div', { class: 'stack entry-code-panel' },
+      el('strong', { text: 'Your private entry code' }), input, button, message,
+      el('p', { class: 'muted', text: 'Copy or write down this code now. Use it to return on another phone or computer. Anyone with this code can access your entry; keep it private.' }),
+      ...(!store.durable('agc_token') ? [el('p', { class: 'msg', role: 'status', text: 'This browser could not save your sign-in. Save your code before leaving; this page can keep you signed in only while it remains open.' })] : []));
+  }
+  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription, codePanel };
 })();

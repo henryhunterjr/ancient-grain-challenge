@@ -11,4 +11,4 @@ http.createServer((req,res)=>{
     if (err) { res.writeHead(404).end(); return; }
     res.writeHead(200,{'Content-Type':({'.html':'text/html','.js':'text/javascript','.css':'text/css','.jpg':'image/jpeg','.svg':'image/svg+xml'})[path.extname(file)]||'application/octet-stream'}).end(data);
   });
-}).listen(4178,'127.0.0.1',()=>console.log('Local preview http://127.0.0.1:4178/record-score'));
+}).listen(Number(process.env.AGC_PREVIEW_PORT || 4178),'127.0.0.1',()=>console.log('Local preview ready'));
