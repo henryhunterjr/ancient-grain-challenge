@@ -58,8 +58,8 @@
 
   <section>
     <div class="wrap wide stack">
-      <h2>Waiting for review</h2>
-      <p class="muted">Lesson check-offs count right away. Each one records the baker's quiz score and the YouTube name they commented under. To spot check a winner, open that lesson's video on YouTube and search the comments for the name. Open links for bonus claims and confirm them here.</p>
+      <h2 id="review-activities">Activities needing your review</h2>
+      <p class="muted">Each row below is an activity claim, not a registration approval. Check its note or link, then select Verify to approve the points or Reject if you cannot confirm it. Lesson check-offs with a passing score and YouTube name count right away. Each one records the baker's quiz score and the YouTube name they commented under. To spot check a winner, open that lesson's video on YouTube and search the comments for the name. Open links for bonus claims and confirm them here.</p>
       <div id="queue"></div>
     </div>
   </section>
@@ -67,8 +67,9 @@
   <section>
     <div class="wrap wide stack">
       <h2>All entrants</h2>
+      <p class="muted">This is your roster. Registrations do not need your approval. In progress means the baker is still working through the lessons. Counted points are already included in their entries.</p>
       <div class="table-wrap"><table>
-        <thead><tr><th>Baker</th><th>Joining from</th><th>Where</th><th>Modules</th><th class="num">Verified</th><th class="num">Pending</th><th>Status</th></tr></thead>
+        <thead><tr><th>Baker</th><th>Joining from</th><th>Where</th><th>Modules</th><th class="num">Counted points</th><th class="num">Points awaiting review</th><th>Status</th></tr></thead>
         <tbody id="entrants"></tbody>
       </table></div>
     </div>
@@ -147,7 +148,7 @@
     const qualified = E.filter(e => !e.disqualified && !e.is_test && e.modules_total > 0 && e.modules_verified >= e.modules_total);
     const pending = E.flatMap(e => e.claims.filter(c => c.status === "pending").map(c => ({ ...c, e })));
     document.getElementById("tiles").replaceChildren(
-      ...[["Registered", E.length], ["Qualified", qualified.length], ["Waiting for review", pending.length], ["Newsletter opt-ins", E.filter(e => e.newsletter).length]]
+      ...[["Registered", E.length], ["All 7 lessons done", qualified.length], ["Activities needing review", pending.length], ["Newsletter opt-ins", E.filter(e => e.newsletter).length]]
         .map(([l, n]) => el("div", { class: "tile" }, el("b", { text: String(n) }), el("span", { class: "muted", text: l }))));
     const tally = {}; E.filter(e => !e.disqualified && !e.is_test && e.preferred_grain).forEach(e => { tally[e.preferred_grain] = (tally[e.preferred_grain] || 0) + 1; });
     const gt = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g}: ${n}`).join(" · ");
@@ -190,7 +191,7 @@
         el("td", { text: `${e.modules_verified} / ${e.modules_total}` }),
         el("td", { class: "num", text: String(e.verified_points) }),
         el("td", { class: "num", text: String(e.pending_points) }),
-        el("td", {}, e.is_test ? el("span", { class: "pill rejected", text: "Test — excluded" }) : e.disqualified ? el("span", { class: "pill rejected", text: "Removed" }) : isQ ? el("span", { class: "pill verified", text: "Qualified" }) : el("span", { class: "muted", text: "In progress" }), el("br"), btn));
+        el("td", {}, e.is_test ? el("span", { class: "pill rejected", text: "Test — excluded" }) : e.disqualified ? el("span", { class: "pill rejected", text: "Removed" }) : isQ ? el("span", { class: "pill verified", text: "All 7 lessons done" }) : el("span", { class: "muted", text: "In progress" }), el("br"), btn));
     }) : [el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No one has registered yet." }))]));
 
     document.getElementById("draws").replaceChildren(...data.draws.map(d => el("div", { class: "card winner stack", style: "gap:4px" },
