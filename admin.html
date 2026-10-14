@@ -44,6 +44,18 @@
     </div>
   </section>
 
+  <section style="border-top:0;padding-top:0" aria-labelledby="find-baker">
+    <div class="wrap wide stack">
+      <h2 id="find-baker">Find a baker's entry code</h2>
+      <label for="entrant-search">Search by name or email
+        <input id="entrant-search" type="search" placeholder="Start typing a baker's name..." autocomplete="off">
+      </label>
+      <p id="search-count" class="muted" role="status" aria-live="polite"></p>
+      <p class="muted">Codes below are private. Share a code only with its baker, using the email on their registration.</p>
+      <div id="code-results" class="stack"></div>
+    </div>
+  </section>
+
   <section>
     <div class="wrap wide stack">
       <h2>Waiting for review</h2>
@@ -95,6 +107,41 @@
     data = r; return true;
   }
 
+  const normal = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim();
+  function filteredEntrants() {
+    const terms = normal(document.getElementById('entrant-search').value).split(/\s+/).filter(Boolean);
+    return (data?.entrants || []).filter(e => {
+      const haystack = normal(e.full_name + ' ' + e.email);
+      return terms.every(term => haystack.includes(term));
+    });
+  }
+  function renderCodeResults() {
+    if (!data) return;
+    const entries = filteredEntrants();
+    document.getElementById('search-count').textContent = entries.length + ' of ' + data.entrants.length + ' bakers';
+    const hasSearch = document.getElementById('entrant-search').value.trim();
+    const shown = hasSearch ? entries : [];
+    document.getElementById('code-results').replaceChildren(...(shown.length ? shown.map(e => {
+      const input = el('input', { readonly: true, value: e.entry_code || '', class: 'code', 'aria-label': 'Private entry code for ' + e.full_name });
+      const msg = el('p', { class: 'msg', role: 'status' });
+      const copy = el('button', { type: 'button', class: 'small', disabled: !e.entry_code }, 'Copy code');
+      copy.onclick = async () => {
+        let copied = false;
+        try { await navigator.clipboard.writeText(e.entry_code); copied = true; }
+        catch { input.focus(); input.select(); try { copied = document.execCommand('copy'); } catch {} }
+        msg.textContent = copied ? 'Code copied for ' + e.full_name + '.' : 'Select and copy the code above.';
+      };
+      const body = 'Hi ' + e.full_name.split(' ')[0] + ',\n\nYour Ancient Grain Challenge entry code is:\n' + e.entry_code + '\n\nKeep this code private. Visit https://challenge.bakinggreatbread.com/#me and paste it under Already registered? to return to your existing entry. Your recorded points and progress stay with that entry.\n\nHenry Hunter';
+      return el('div', { class: 'card stack' },
+        el('strong', { text: e.full_name }), el('span', { class: 'muted', text: e.email }),
+        e.is_test || e.disqualified ? el('span', { class: 'pill rejected', text: e.is_test ? 'Test entry' : 'Removed entry' }) : null,
+        input, el('div', { class: 'bar' }, copy, e.entry_code ? el('a', { class: 'btn-link ghost-link', href: 'mailto:' + encodeURIComponent(e.email) + '?subject=' + encodeURIComponent('Your Ancient Grain Challenge entry code') + '&body=' + encodeURIComponent(body), text: 'Open email to this baker' }) : null), msg);
+    }) : [el('p', { class: 'muted', text: hasSearch ? 'No bakers match that search.' : 'Type a name or email above to find a code.' })]));
+    document.querySelectorAll('#entrants tr[data-entrant-id]').forEach(row => {
+      row.hidden = !entries.some(e => e.id === row.getAttribute('data-entrant-id'));
+    });
+  }
+
   function render() {
     const E = data.entrants; const oldT = document.getElementById("grain-tally"); if (oldT) oldT.remove();
     const qualified = E.filter(e => !e.disqualified && !e.is_test && e.modules_total > 0 && e.modules_verified >= e.modules_total);
@@ -136,7 +183,7 @@
       const isQ = e.modules_total > 0 && e.modules_verified >= e.modules_total;
       const btn = el("button", { type: "button", class: "ghost small" }, e.disqualified ? "Reinstate" : "Remove");
       btn.addEventListener("click", async () => { btn.disabled = true; await rpc("admin_set_disqualified", { p_key: key, p_entrant: e.id, p_value: !e.disqualified }); await refresh(); });
-      return el("tr", {},
+      return el("tr", { "data-entrant-id": e.id },
         el("td", {}, el("strong", { text: e.full_name }), el("br"), el("small", { text: e.email })),
         el("td", { text: e.skool_name }),
         el("td", {}, document.createTextNode([e.region, e.country].filter(Boolean).join(", ")), el("br"), el("small", { text: [e.mill_status, e.preferred_grain && ("Grain: " + e.preferred_grain)].filter(Boolean).join(" · ") })),
@@ -151,7 +198,8 @@
       el("span", { class: "muted", text: `${d.email} · From: ${d.skool_name} · ${d.entries} entries out of a pool of ${d.pool_size} bakers · ${fmt(d.drawn_at)}` }))));
   }
 
-  async function refresh() { if (await load()) render(); }
+  async function refresh() { if (await load()) { render(); renderCodeResults(); } }
+  document.getElementById("entrant-search").addEventListener("input", renderCodeResults);
 
   document.getElementById("login").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -159,7 +207,7 @@
     key = document.getElementById("key").value.trim(); m.className = "msg"; m.textContent = "Checking…";
     try {
       if (!(await load())) { m.className = "msg err"; m.textContent = "That passcode didn't work."; return; }
-      ss.set("agc_admin", key); m.textContent = ""; document.getElementById("login").hidden = true; document.getElementById("app").hidden = false; render();
+      ss.set("agc_admin", key); m.textContent = ""; document.getElementById("login").hidden = true; document.getElementById("app").hidden = false; render(); renderCodeResults();
     } catch { m.className = "msg err"; m.textContent = "Couldn't reach the server."; }
   });
   document.getElementById("refresh").onclick = refresh;
