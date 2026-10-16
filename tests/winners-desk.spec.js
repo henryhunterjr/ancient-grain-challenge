@@ -85,7 +85,8 @@ test('admin desk: winner card, labels, notify, partner list, announcement, nudge
   // Winner email carries the claim link, then notify moves the status.
   const href = await page.locator('#win-list a', { hasText: 'Open winner email' }).getAttribute('href');
   expect(decodeURIComponent(href)).toContain(`/claim?c=${TOKEN}`);
-  expect(decodeURIComponent(href)).toContain('mailto:winnie@example.invalid');
+  expect(decodeURIComponent(href)).toContain('mail.google.com/mail/?view=cm');
+  expect(decodeURIComponent(href)).toContain('to=winnie@example.invalid');
   expect(decodeURIComponent(href)).not.toContain('—');
   await page.click('#win-list button:has-text("Mark notified")');
   await expect(page.locator('#win-list')).toContainText('Waiting on address');
@@ -103,7 +104,7 @@ test('admin desk: winner card, labels, notify, partner list, announcement, nudge
   await expect(page.locator('#partner-table')).toContainText('1 Main St');
   await page.fill('#partner-email', 'adam@example.invalid');
   const partnerHref = decodeURIComponent(await page.locator('#partner-mail').getAttribute('href'));
-  expect(partnerHref).toContain('mailto:adam@example.invalid');
+  expect(partnerHref).toContain('to=adam@example.invalid');
   expect(partnerHref).toContain('1 Main St');
   expect(partnerHref).toContain('Spelt');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#partner-csv')]);
