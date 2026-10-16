@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Claim your prize · Ancient Grain Challenge</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .grid2 { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  .summary { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .summary dt { font-weight: 600; font-size: .85rem; color: var(--muted); }
+  .summary dd { margin: 0 0 10px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="site-banner"><img src="img/site-header.jpg" alt="Ancient Grain Challenge, Crust &amp; Crumb Academy and Recipe Pantry Ancient Grains" width="2400" height="340" fetchpriority="high"></div>
+<header class="hero" style="padding-block:40px 20px">
+  <div class="wrap stack">
+    <p class="eyebrow">Crust &amp; Crumb Academy · with Grand Teton Ancient Grains</p>
+    <h1 id="title">You <em>won</em></h1>
+    <p class="lede" id="lede">Checking your link…</p>
+  </div>
+</header>
+
+<main>
+  <section style="border-top:0;padding-top:0">
+    <div class="wrap stack">
+      <div id="bad" class="card stack" hidden>
+        <strong>That link didn't work.</strong>
+        <p class="muted">Claim links are private and come from the email Henry sent you. Open the link from that email, or write to <a href="mailto:henrysbreadkitchen@gmail.com">henrysbreadkitchen@gmail.com</a> and we'll sort it out.</p>
+      </div>
+
+      <div id="closed" class="card stack" hidden>
+        <strong>This prize claim is closed.</strong>
+        <p class="muted">The 7 day window for this prize has passed and the bag has been redrawn. You're still in the running for future Friday draws. Questions? Email <a href="mailto:henrysbreadkitchen@gmail.com">henrysbreadkitchen@gmail.com</a>.</p>
+      </div>
+
+      <div id="locked" class="card stack" hidden>
+        <strong>Your bag is on its way.</strong>
+        <p class="muted">Your shipping details have already gone to Grand Teton Ancient Grains, so they can't be changed here. If something needs fixing, email <a href="mailto:henrysbreadkitchen@gmail.com">henrysbreadkitchen@gmail.com</a> right away.</p>
+        <dl class="summary" id="locked-summary"></dl>
+      </div>
+
+      <form id="claim" class="stack" hidden novalidate>
+        <p id="intro">Tell us where to send it and which grain you'd like. Grand Teton Ancient Grains ships the prize straight to you.</p>
+        <p id="expires" class="muted"></p>
+        <label for="grain">Which grain would you like?
+          <select id="grain" required>
+            <option value="">Choose one</option>
+            <option>Einkorn</option><option>Spelt</option><option>Emmer</option><option>Khorasan</option><option>Rye</option>
+            <option>Hard Red Spring Wheat</option><option>Hard White Wheat</option><option>Soft White Wheat</option><option>Durum</option>
+            <option>Black Nile Barley</option><option>Millet</option><option>Surprise me</option>
+          </select>
+          <span class="hint">You picked a grain when you registered. Change it here if you want something different.</span>
+        </label>
+        <label for="ship_name">Name for the shipping label <input id="ship_name" autocomplete="name" required></label>
+        <label for="address1">Street address <input id="address1" autocomplete="address-line1" required></label>
+        <label for="address2">Apartment, suite, unit <span class="hint">optional</span> <input id="address2" autocomplete="address-line2"></label>
+        <div class="grid2">
+          <label for="city">City <input id="city" autocomplete="address-level2" required></label>
+          <label for="region">State or province <input id="region" autocomplete="address-level1" required></label>
+        </div>
+        <div class="grid2">
+          <label for="postal">ZIP or postal code <input id="postal" autocomplete="postal-code" required></label>
+          <label for="country">Country
+            <select id="country" required><option>United States</option><option>Canada</option></select>
+          </label>
+        </div>
+        <label for="phone">Phone <span class="hint">optional, only for the carrier if there's a delivery problem</span> <input id="phone" type="tel" autocomplete="tel"></label>
+        <p class="muted">We share your name and shipping details with Grand Teton Ancient Grains only to ship your prize. Nothing else.</p>
+        <div class="cta-row">
+          <button type="submit" id="send">Send my shipping details</button>
+        </div>
+        <p id="msg" class="msg" role="status" aria-live="polite"></p>
+      </form>
+
+      <div id="done" class="card stack" hidden>
+        <strong>Got it. Your details are in.</strong>
+        <p class="muted">Henry sends the week's winners to Grand Teton Ancient Grains once everyone's address is in, and your bag ships from Driggs, Idaho. You'll get an email when it's on the way. Need to fix something? Reload this page and send the form again.</p>
+        <p><a class="btn-link ghost-link" href="/#lessons">Keep going with the lessons</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap stack">
+    <p>Run by Henry Hunter and the Crust &amp; Crumb Academy. Prizes and grain provided by <a href="https://www.ancientgrains.com/?a_aid=henryhunter" target="_blank" rel="sponsored noopener">Grand Teton Ancient Grains</a>, Driggs, Idaho.</p>
+    <p class="muted">&copy; 2026 Henry Hunter, Crust &amp; Crumb Academy, Baking Great Bread at Home, and Recipe Pantry. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="shared.js"></script>
+<script>
+(() => {
+  const { rpc } = AGC;
+  const $ = id => document.getElementById(id);
+  const token = new URLSearchParams(location.search).get("c") || "";
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const show = id => { ["bad","closed","locked","claim","done"].forEach(k => $(k).hidden = k !== id); };
+  const fields = ["grain","ship_name","address1","address2","city","region","postal","country","phone"];
+  const fmtDate = d => new Date(d).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+
+  function fail() { $("title").innerHTML = "Hmm"; $("lede").textContent = "We couldn't find that prize claim."; show("bad"); }
+
+  async function init() {
+    if (!uuid.test(token)) return fail();
+    let r;
+    try { r = await rpc("winner_claim", { p_claim: token }); } catch { return fail(); }
+    if (!r || r.error) return fail();
+    const prize = r.kind === "grand" ? "the 25 lb grand prize" : "a 5 lb bag of grain";
+    $("title").innerHTML = `${r.first_name}, you <em>won</em>`;
+    $("lede").textContent = `You won ${prize} from Grand Teton Ancient Grains${r.label ? " in the " + r.label + " drawing" : ""}.`;
+    if (r.closed) return show("closed");
+    if (r.locked) {
+      const dl = $("locked-summary");
+      dl.replaceChildren(...[["Grain", r.grain], ["Ships to", [r.ship_name, r.address1, r.address2, [r.city, r.region, r.postal].filter(Boolean).join(", "), r.country].filter(Boolean).join("\n")]]
+        .flatMap(([k, v]) => { const dd = document.createElement("dd"); dd.style.whiteSpace = "pre-line"; dd.textContent = v; const dt = document.createElement("dt"); dt.textContent = k; return [dt, dd]; }));
+      return show("locked");
+    }
+    fields.forEach(f => { if (r[f]) $(f).value = r[f]; });
+    if (![...$("grain").options].some(o => o.value === $("grain").value)) $("grain").value = "";
+    if (r.submitted) { $("intro").textContent = "Your details are already in. You can correct anything below and send it again."; $("send").textContent = "Update my shipping details"; }
+    else if (r.expires_at) $("expires").textContent = "Please send your details by " + fmtDate(r.expires_at) + ". After 7 days the bag goes back into the drawing.";
+    show("claim");
+  }
+
+  $("claim").addEventListener("submit", async e => {
+    e.preventDefault();
+    const m = $("msg"); m.className = "msg";
+    const v = id => $(id).value.trim();
+    if (!v("grain")) { m.className = "msg err"; m.textContent = "Pick the grain you'd like."; $("grain").focus(); return; }
+    for (const id of ["ship_name","address1","city","region","postal"]) {
+      if (!v(id)) { m.className = "msg err"; m.textContent = "Fill in every address line except apartment and phone."; $(id).focus(); return; }
+    }
+    $("send").disabled = true; m.textContent = "Sending…";
+    try {
+      const r = await rpc("winner_claim_submit", { p_claim: token, p_grain: v("grain"), p_ship_name: v("ship_name"), p_address1: v("address1"), p_address2: v("address2"),
+        p_city: v("city"), p_region: v("region"), p_postal: v("postal"), p_country: v("country"), p_phone: v("phone") });
+      if (r.error === "locked") return show("locked");
+      if (r.error === "closed") return show("closed");
+      if (r.error) throw 0;
+      show("done"); window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch { m.className = "msg err"; m.textContent = "That didn't go through. Check the address and try again, or email henrysbreadkitchen@gmail.com."; }
+    $("send").disabled = false;
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
