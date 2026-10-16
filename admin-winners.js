@@ -27,7 +27,9 @@ window.AGCWinners = (() => {
     return `"${text.replace(/"/g, '""')}"`;
   };
   const html = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const mailto = (to, subject, body, bcc) => "mailto:" + encodeURIComponent(to || "") + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body) + (bcc ? "&bcc=" + encodeURIComponent(bcc) : "");
+  // Gmail compose in a new tab. A plain mailto: link needs a desktop mail app, which Henry's browser doesn't have.
+  const compose = (to, subject, body) => "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to || "") + "&su=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+  const emailText = (to, subject, body) => `To: ${to || ""}\nSubject: ${subject}\n\n${body}`;
   const claimLink = w => SITE + "/claim?c=" + w.claim_token;
   const isGrand = w => w.kind === "grand";
   const prizeWords = w => isGrand(w) ? "the 25 lb grand prize" : "a 5 lb bag of grain";
@@ -120,6 +122,14 @@ Tracking: ${w.tracking}` : ""}
 When it lands, mill it fresh if you can and bake something. Then post it in the Academy or tag me. I'd love to see what you make with it.
 
 ${w.modules_verified >= 7 ? "You've finished all seven lessons, so you're still in the December 1 drawing for the 25 lb grand prize." : "You're still in the running for the 25 lb grand prize on December 1 once you finish all seven lessons."}${SIGNATURE}` };
+  }
+  function dmText(w) {
+    return `Congratulations, ${first(w.full_name)}! Your name came up in the ${weekOf(w)} drawing for the Ancient Grain Challenge. You won ${prizeWords(w)} from Grand Teton Ancient Grains.
+
+Tap this private link to tell us where to ship it and which grain you'd like. Please do it within 7 days:
+${claimLink(w)}
+
+Keep the link to yourself, it's tied to your prize. Henry`;
   }
   function partnerEmail(list, label) {
     const lines = list.map((w, i) => `${i + 1}. ${w.ship_name || w.full_name}
@@ -264,9 +274,9 @@ Henry`;
     const link = (label, href) => el("a", { class: "btn-link ghost-link", style: "padding:6px 12px;font-size:.85rem", href, target: "_blank", rel: "noopener", text: label });
     const notice = winnerEmail(w), remind = reminderEmail(w), shipped = shippedEmail(w);
     const actions = el("div", { class: "bar" });
-    if (w.status === "drawn") actions.append(link("Open winner email", mailto(w.email, notice.subject, notice.body)), act("Mark notified", () => mark(w, "notified")));
-    if (w.status === "notified") actions.append(link("Open reminder email", mailto(w.email, remind.subject, remind.body)), act("Mark reminded", () => mark(w, "reminded"), "ghost small"));
-    if (w.status === "sent_to_partner") actions.append(link("Open shipped email", mailto(w.email, shipped.subject, shipped.body)), act("Mark shipped", () => mark(w, "shipped")));
+    if (w.status === "drawn") actions.append(link("Open winner email in Gmail", compose(w.email, notice.subject, notice.body)), copyBtn(emailText(w.email, notice.subject, notice.body), "Copy email"), act("Mark notified", () => mark(w, "notified")));
+    if (w.status === "notified") actions.append(link("Open reminder email in Gmail", compose(w.email, remind.subject, remind.body)), copyBtn(emailText(w.email, remind.subject, remind.body), "Copy email"), act("Mark reminded", () => mark(w, "reminded"), "ghost small"));
+    if (w.status === "sent_to_partner") actions.append(link("Open shipped email in Gmail", compose(w.email, shipped.subject, shipped.body)), copyBtn(emailText(w.email, shipped.subject, shipped.body), "Copy email"), act("Mark shipped", () => mark(w, "shipped")));
     if (!w.announced_at && w.status !== "forfeited") actions.append(act("Mark announced", () => mark(w, "announced"), "ghost small"));
     if (["drawn", "notified"].includes(w.status)) {
       const forfeit = act("Forfeit (no reply)", async () => { if (confirm(`Forfeit ${w.full_name}'s ${bagWords(w)}? They won't be able to claim it, and the bag goes back to the pool for the next draw.`)) await mark(w, "forfeited"); else forfeit.disabled = false; }, "ghost small");
@@ -291,7 +301,7 @@ Henry`;
       timeline(w),
       overdue(w) ? el("p", { class: "msg err", text: `No address and the 7 day window closed ${fmtDay(w.claim_expires_at)}. Send one more reminder or forfeit and draw again.` }) : null,
       hasAddress(w) ? el("p", { style: "white-space:pre-line;margin:0", text: addressLines(w).join("\n") + (w.phone ? "\n" + w.phone : "") + (w.tracking ? "\nTracking: " + w.tracking : "") }) : null,
-      el("div", { class: "bar" }, el("input", { readonly: true, class: "code", value: claimLink(w), "aria-label": "Private claim link", style: "flex:1 1 320px" }), copyBtn(claimLink(w), "Copy claim link")),
+      el("div", { class: "bar" }, el("input", { readonly: true, class: "code", value: claimLink(w), "aria-label": "Private claim link", style: "flex:1 1 320px" }), copyBtn(claimLink(w), "Copy claim link"), copyBtn(() => dmText(w), "Copy DM for Skool or Facebook")),
       actions,
       el("div", { class: "bar" }, toggle, labelIn, labelSave),
       details,
@@ -323,7 +333,7 @@ Henry`;
       el("strong", { text: w.ship_name || w.full_name }), el("span", { class: "muted", text: addressLines(w).slice(1).join(", ") + (w.phone ? " · " + w.phone : "") }), el("span", { class: "pill verified", text: (w.grain || "Surprise me") + " · " + bagWords(w) }))));
     $("partner-csv").disabled = !ready.length;
     $("partner-csv").onclick = () => download(`grand-teton-shipments-${new Date().toISOString().slice(0, 10)}.csv`, partnerCsv(ready));
-    const a = $("partner-mail"); a.href = mailto(to, mail.subject, mail.body); a.classList.toggle("disabled", !ready.length); a.setAttribute("aria-disabled", String(!ready.length));
+    const a = $("partner-mail"); a.href = compose(to, mail.subject, mail.body); $("partner-copy").onclick = async () => { try { await navigator.clipboard.writeText(emailText(to, mail.subject, mail.body)); $("partner-copy").textContent = "Copied"; setTimeout(() => $("partner-copy").textContent = "Copy email text", 1500); } catch {} }; $("partner-copy").disabled = !ready.length; a.classList.toggle("disabled", !ready.length); a.setAttribute("aria-disabled", String(!ready.length));
     $("partner-mark").disabled = !ready.length;
     $("partner-mark").onclick = async () => {
       if (!confirm(`Mark ${ready.length} winner${ready.length === 1 ? "" : "s"} as sent to Grand Teton? Their claim links lock after this.`)) return;
@@ -376,7 +386,7 @@ Henry`;
         el("td", { class: "num", text: `${e.modules_verified}/7` }),
         el("td", { text: next ? next.title : "All done" }),
         el("td", { text: fmt(lastActivity(e)) }),
-        el("td", {}, el("a", { class: "btn-link ghost-link", style: "padding:6px 12px;font-size:.85rem", href: mailto(e.email, m.subject, m.body), target: "_blank", rel: "noopener", text: "Open nudge email" })));
+        el("td", {}, el("a", { class: "btn-link ghost-link", style: "padding:6px 12px;font-size:.85rem", href: compose(e.email, m.subject, m.body), target: "_blank", rel: "noopener", text: "Open nudge in Gmail" }), " ", copyBtn(emailText(e.email, m.subject, m.body), "Copy")));
     }));
     const thisWeek = winners.filter(w => w.status !== "forfeited" && weekOf(w) === weekOf(winners[0] || { drawn_at: new Date() }));
     const blast = $("nudge-blast"); blast.value = blastText(weekOf(winners[0] || { drawn_at: new Date() }), thisWeek);
