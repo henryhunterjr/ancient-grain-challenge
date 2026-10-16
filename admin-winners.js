@@ -20,7 +20,13 @@ window.AGCWinners = (() => {
   const fmtDay = d => d ? new Date(d).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }) : "";
   const shortDay = d => new Date(d + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" });
   const longDay = d => new Date(d + "T12:00:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
-  const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const esc = v => {
+    let text = String(v ?? "");
+    // Quoting CSV alone does not stop spreadsheet formula evaluation.
+    if (/^[\s\u0000-\u001f]*[=+\-@]/.test(text) || /^[\t\r\n]/.test(text)) text = "'" + text;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+  const html = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const mailto = (to, subject, body, bcc) => "mailto:" + encodeURIComponent(to || "") + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body) + (bcc ? "&bcc=" + encodeURIComponent(bcc) : "");
   const claimLink = w => SITE + "/claim?c=" + w.claim_token;
   const isGrand = w => w.kind === "grand";
@@ -162,10 +168,10 @@ Each of them gets a 5 lb bag of grain from Grand Teton Ancient Grains, shipped t
 This challenge is free and open to everyone, not just Academy members. Watch a short lesson on ancient grains or fresh-milled flour, pass the quiz, and your name goes in the hat.${nextLine}
 
 Start here: ${SITE}`;
-    const newsletterHtml = `<h2>${label} winners: Ancient Grain Challenge</h2>
+    const newsletterHtml = `<h2>${html(label)} winners: Ancient Grain Challenge</h2>
 <p>${count ? `${count === 1 ? "One baker" : count + " bakers"} won a 5 lb bag of grain from Grand Teton Ancient Grains this week` : "We have a grand prize winner"}:</p>
 <ul>
-${list.map(w => `  <li><strong>${publicName(w.full_name)}</strong>${w.region ? ", " + w.region : ""}: ${isGrand(w) ? "25 lb grand prize" : "5 lb bag"}${w.grain && w.grain !== "Surprise me" ? ", " + w.grain : ""}</li>`).join("\n")}
+${list.map(w => `  <li><strong>${html(publicName(w.full_name))}</strong>${w.region ? ", " + html(w.region) : ""}: ${isGrand(w) ? "25 lb grand prize" : "5 lb bag"}${w.grain && w.grain !== "Surprise me" ? ", " + html(w.grain) : ""}</li>`).join("\n")}
 </ul>
 ${isFinale ? "" : `<p>Next drawing is ${longDay(next)}. Finish one lesson and you're in. Finish all seven and you qualify for the 25 lb grand prize on December 1.</p>`}
 <p><a href="${SITE}/#lessons">Watch the next lesson</a> · <a href="${SITE}/#me">Check your entry</a></p>`;

@@ -152,3 +152,40 @@ test('claim page: validates, submits, and handles a bad link', async ({ page }) 
   await expect(page.locator('#bad')).toBeVisible();
   expect(calls.filter(c => c.name === 'winner_claim').length).toBe(1);
 });
+
+test('claim name is literal text, with no injected markup', async ({ page }) => {
+  await mock(page);
+  const hostile = '<img/src=x/onerror=window.claimInjected=1>';
+  await page.route('**/rpc/winner_claim', route => route.fulfill({ json: {
+    first_name: hostile, kind: 'weekly', grain: 'Spelt', locked: false, closed: false,
+  } }));
+  await page.goto(`/claim?c=${TOKEN}`);
+  await expect(page.locator('#title')).toHaveText(`${hostile}, you won`);
+  await expect(page.locator('#title em')).toHaveText('won');
+  await expect(page.locator('#title img')).toHaveCount(0);
+  expect(await page.evaluate(() => window.claimInjected)).toBeUndefined();
+});
+
+test('newsletter escapes winner fields and CSV neutralizes formulas', async ({ page }) => {
+  await mock(page);
+  await page.goto('/admin');
+  await page.fill('#key', 'local-only');
+  await page.click('#login button[type=submit]');
+  await expect(page.locator('#win-list')).toContainText('Winnie Baker');
+  const result = await page.evaluate(() => {
+    const hostile = '<img/src=x/onerror=alert(1)>';
+    const w = { full_name: hostile, region: hostile, grain: hostile, kind: 'weekly', drawn_at: '2026-10-16T13:52:00Z' };
+    const html = AGCWinners.announcement([w], hostile).newsletterHtml;
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const formulas = ['=1+1', '+SUM(1,2)', '-1+1', '@SUM(1,2)', '\t=1+1', '  =1+1', '\r=1+1'];
+    const csv = formulas.map(value => ({ value, text: AGCWinners.partnerCsv([{ ...w, label: value, ship_name: value, address1: value, phone: value }]) }));
+    return { html, images: doc.querySelectorAll('img').length, text: doc.body.textContent, csv };
+  });
+  expect(result.images).toBe(0);
+  expect(result.html).toContain('&lt;img/src=x/onerror=alert(1)&gt;');
+  expect(result.text).toContain('<img/src=x/onerror=alert(1)>');
+  for (const row of result.csv) {
+    const neutralized = `"'${row.value.replace(/"/g, '""')}"`;
+    expect(row.text.split(neutralized).length - 1).toBe(4);
+  }
+});

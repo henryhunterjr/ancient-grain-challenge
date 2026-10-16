@@ -21,6 +21,7 @@ begin
   -- Admin gate.
   if admin_winners('wrong')->>'error' <> 'denied' then raise exception 'Ungated admin_winners'; end if;
   if admin_winner_mark('wrong',d,'notified')->>'error' <> 'denied' then raise exception 'Ungated mark'; end if;
+  if admin_winner_edit('wrong',d,'{"notes":"unauthorized"}'::json)->>'error' <> 'denied' then raise exception 'Ungated edit'; end if;
   if admin_set_draw_label('wrong',d,'x')->>'error' <> 'denied' then raise exception 'Ungated label'; end if;
   if (select count(*) from json_array_elements(admin_winners('local-only-test')) w where (w->>'draw_id')::uuid = d and w->>'claim_token' = tok::text) <> 1 then
     raise exception 'admin_winners missing draw or claim token'; end if;
@@ -71,6 +72,14 @@ begin
 
   -- Anonymous role cannot read the table directly.
   if has_table_privilege('anon','public.winner_fulfillment','select') then raise exception 'anon can read fulfillment'; end if;
+  if has_table_privilege('authenticated','public.winner_fulfillment','select,insert,update,delete')
+     or has_table_privilege('anon','public.winner_fulfillment','insert,update,delete') then
+    raise exception 'Untrusted role has direct fulfillment privileges'; end if;
+  if exists (select 1 from pg_proc p cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+    where p.pronamespace='public'::regnamespace and p.proname in
+      ('_fulfillment_for_draw','admin_winners','admin_winner_mark','admin_winner_edit','admin_set_draw_label','winner_claim','winner_claim_submit')
+      and a.grantee=0 and a.privilege_type='EXECUTE') then
+    raise exception 'New function executable by PUBLIC'; end if;
 
   -- Draw pools are untouched by the new table: the winner is still out of the small pool, in the grand pool once qualified.
   if exists (select 1 from _draw_pool('weekly') where entrant_id = (select entrant_id from draws where id = d)) then raise exception 'Pool changed'; end if;

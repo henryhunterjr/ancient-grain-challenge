@@ -6,7 +6,7 @@ Adds prize fulfillment to the Host Desk without touching how draws work.
 
 - `winner_fulfillment` table: one row per draw, created by a trigger on `draws`, seeded with the baker's registration grain. Holds status, shipping details, phone, tracking, notes, and timestamps for each step. RLS on, no anon or authenticated access; everything goes through the RPCs below.
 - Admin RPCs (passcode gated like the rest): `admin_winners`, `admin_winner_mark`, `admin_winner_edit`, `admin_set_draw_label`.
-- Public RPCs for the claim page, keyed by an unguessable claim token: `winner_claim`, `winner_claim_submit`. The view returns first name and prize only, never email. Submissions lock once the batch goes to Grand Teton.
+- Public RPCs for the claim page, keyed by an unguessable claim token: `winner_claim`, `winner_claim_submit`. The view returns first name, prize, and the stored shipping fields for corrections, never email. Treat the whole claim URL as private. Submissions lock once the batch goes to Grand Teton, with row locks serializing simultaneous status changes and address submissions. The seven-day date is an operational reminder; Henry closes an unclaimed prize by marking it forfeited.
 - `/claim?c=<token>`: the page a winner opens from their email. Confirms grain, collects address and phone. `noindex`, `no-store`.
 - Host Desk sections: Winners and prizes, Send the shipment list to Grand Teton, Announce the winners, Keep bakers moving. All email goes out as pre-filled Gmail drafts (mailto); nothing sends on its own.
 - Draw labels default to `Week N · <date>` or `Finale · Dec 1` from the draw date. A one-click fix fills in labels that were left blank.

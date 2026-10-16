@@ -97,7 +97,7 @@ begin
   insert into winner_fulfillment(draw_id, grain)
   select d.id, coalesce(e.preferred_grain,'') from draws d join entrants e on e.id = d.entrant_id where d.id = p_draw_id
   on conflict (draw_id) do nothing;
-  select status into v_status from winner_fulfillment where draw_id = p_draw_id;
+  select status into v_status from winner_fulfillment where draw_id = p_draw_id for update;
   if v_status is null then return json_build_object('error','draw'); end if;
 
   update winner_fulfillment set
@@ -190,7 +190,7 @@ create or replace function public.winner_claim_submit(p_claim uuid, p_grain text
 as $function$
 declare v winner_fulfillment;
 begin
-  select * into v from winner_fulfillment where claim_token = p_claim;
+  select * into v from winner_fulfillment where claim_token = p_claim for update;
   if v.draw_id is null then return json_build_object('error','notfound'); end if;
   if v.status = 'forfeited' then return json_build_object('error','closed'); end if;
   if v.status in ('sent_to_partner','shipped') then return json_build_object('error','locked'); end if;
@@ -214,6 +214,11 @@ begin
 end $function$;
 
 revoke all on function public._fulfillment_for_draw() from public, anon, authenticated;
+revoke all on function public.admin_winners(text), public.admin_winner_mark(text,uuid,text),
+  public.admin_winner_edit(text,uuid,json), public.admin_set_draw_label(text,uuid,text),
+  public.winner_claim(uuid),
+  public.winner_claim_submit(uuid,text,text,text,text,text,text,text,text,text)
+  from public;
 grant execute on function public.admin_winners(text), public.admin_winner_mark(text,uuid,text),
   public.admin_winner_edit(text,uuid,json), public.admin_set_draw_label(text,uuid,text),
   public.winner_claim(uuid),

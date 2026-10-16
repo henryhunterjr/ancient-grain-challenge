@@ -114,7 +114,9 @@
     try { r = await rpc("winner_claim", { p_claim: token }); } catch { return fail(); }
     if (!r || r.error) return fail();
     const prize = r.kind === "grand" ? "the 25 lb grand prize" : "a 5 lb bag of grain";
-    $("title").innerHTML = `${r.first_name}, you <em>won</em>`;
+    const emphasis = document.createElement("em");
+    emphasis.textContent = "won";
+    $("title").replaceChildren(document.createTextNode(`${r.first_name}, you `), emphasis);
     $("lede").textContent = `You won ${prize} from Grand Teton Ancient Grains${r.label ? " in the " + r.label + " drawing" : ""}.`;
     if (r.closed) return show("closed");
     if (r.locked) {

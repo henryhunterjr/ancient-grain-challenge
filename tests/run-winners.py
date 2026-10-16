@@ -10,7 +10,9 @@ HOST = os.environ.get('AGC_TEST_PG_HOST', '127.0.0.1')
 PORT = os.environ.get('AGC_TEST_PG_PORT', '55439')
 DB = 'agc_winners_test_' + str(int(time.time()))
 EXE = '.exe' if os.name == 'nt' else ''
-ARGS = ['-h', HOST, '-p', PORT, '-U', 'postgres', '-w', '-d', DB, '-v', 'ON_ERROR_STOP=1']
+if HOST not in ('127.0.0.1', 'localhost', '::1'):
+    raise RuntimeError('Disposable test runner accepts localhost only')
+ARGS = ['-h', HOST, '-p', PORT, '-U', 'postgres', '-w', '-d', DB, '-v', 'ON_ERROR_STOP=1', '-At']
 ENV = {**os.environ, 'PGCLIENTENCODING': 'UTF8'}
 
 def sql(source):
@@ -34,4 +36,7 @@ sql(read('supabase/migrations/20261016150000_winner_fulfillment.sql'))
 print(sql(read('tests/winners.sql')).strip()[-160:])
 # Applying the migration twice must be harmless (create if not exists, replace functions, backfill on conflict).
 sql(read('supabase/migrations/20261016150000_winner_fulfillment.sql'))
+sql("insert into settings values('admin_hash',encode(extensions.digest('local-only-test','sha256'),'hex')) on conflict(key) do update set value=excluded.value;")
+from winners_concurrency import run
+run(sql, BIN/('psql'+EXE), ARGS, ENV)
 print(f'PASS: migration is re-runnable. Local database: {DB}')
