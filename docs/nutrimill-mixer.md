@@ -5,7 +5,7 @@ The Bosch Universal Plus stand mixer is an additional December 1 prize. Every re
 ## Included
 
 - Supplied wide graphic at `/img/mixer-giveaway.jpg` (the exact URL used in the email drafts), plus the supplied tall social image at `/img/mixer-giveaway-tall.jpg`.
-- Hero prize card, registration explanation, official rules, winners labels, and clarification of the separate grain/mixer qualification paths. The existing registration promo and Henry's Register free jump destination are retained, along with NutriMill's existing partner card and affiliate link.
+- Hero prize card, registration explanation, official rules, winners labels, and clarification of the separate grain/mixer qualification paths. The existing registration promo is retained above the form, while Henry's latest Register free behavior jumps directly to the form heading (`h2#me`). NutriMill's existing partner card and affiliate link are retained.
 - A separate `mixer` option in the Host Desk. It uses `admin_draw`, the existing administrator gate, and the existing draw lock. One active mixer winner is allowed. Forfeiting an unclaimed mixer permits a replacement draw for another baker, preserving the original draw and fulfillment history. Previous mixer winners do not re-enter the mixer pool.
 - Mixer-specific claim form and winner/reminder/shipping messages. The mixer requires a shipping address, without a grain selection. Claim token privacy and shipment locks are retained.
 - Partner selection keeps NutriMill's mixer shipment separate from Grand Teton's grain shipments, including both batch and full-history CSV exports. Each partner has its own locally remembered email address. These controls prepare messages; they do not send them.

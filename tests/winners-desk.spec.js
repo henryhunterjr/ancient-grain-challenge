@@ -280,7 +280,11 @@ test('public mixer announcement and rules agree at mobile and desktop widths', a
   await page.goto('/');
   await expect(page.locator('.prize-row')).toContainText('Bosch Universal Plus from NutriMill');
   await expect(page.locator('#winners-list')).toContainText('Stand mixer');
-  await expect(page.locator('#me img[src="img/ancient-grain-prize-banner.svg"]')).toHaveCount(1);
+  await expect(page.locator('section[aria-labelledby="me"] img[src="img/ancient-grain-prize-banner.svg"]')).toHaveCount(1);
+  await expect(page.locator('#me')).toHaveJSProperty('tagName', 'H2');
+  await page.getByRole('link', { name: 'Register free', exact: true }).click();
+  await expect(page).toHaveURL(/\/#me$/);
+  await expect(page.getByRole('heading', { name: 'Your entry & private code' })).toBeInViewport();
   await expect(page.locator('#rules')).toContainText('Each verified point adds one more entry.');
   await expect(page.locator('#rules')).toContainText("Winning grain doesn't stop you from winning the mixer.");
   for (const width of [393, 1440]) {
