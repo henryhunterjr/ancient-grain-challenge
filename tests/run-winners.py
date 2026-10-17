@@ -33,10 +33,22 @@ baseline = read('tests/baseline-schema.sql').replace('\\ir baseline-functions.sq
 sql(baseline)
 sql(strip_guard(read('database/launch-validation.sql')))
 sql(read('supabase/migrations/20261016150000_winner_fulfillment.sql'))
+sql(read('supabase/migrations/20261017230000_nutrimill_mixer.sql'))
+print(sql(read('tests/draws.sql')).strip()[-250:])
 print(sql(read('tests/winners.sql')).strip()[-160:])
+print(sql(read('tests/mixer.sql')).strip()[-200:])
 # Applying the migration twice must be harmless (create if not exists, replace functions, backfill on conflict).
 sql(read('supabase/migrations/20261016150000_winner_fulfillment.sql'))
+sql(read('supabase/migrations/20261017230000_nutrimill_mixer.sql'))
 sql("insert into settings values('admin_hash',encode(extensions.digest('local-only-test','sha256'),'hex')) on conflict(key) do update set value=excluded.value;")
 from winners_concurrency import run
 run(sql, BIN/('psql'+EXE), ARGS, ENV)
+from concurrent.futures import ThreadPoolExecutor
+import json
+with ThreadPoolExecutor(max_workers=2) as pool:
+    results = list(pool.map(lambda _: json.loads(sql("select admin_draw('local-only-test','Bosch Universal Plus stand mixer','mixer','Synthetic concurrent mixer');").strip()), range(2)))
+assert sum(r.get('error') == 'prize_limit' for r in results) == 1, results
+assert sum('name' in r for r in results) == 1, results
+assert sql("select count(*) from draws where kind='mixer';").strip() == '1'
+print('PASS: two concurrent mixer draws create exactly one winner')
 print(f'PASS: migration is re-runnable. Local database: {DB}')

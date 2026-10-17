@@ -31,9 +31,11 @@ window.AGCWinners = (() => {
   const compose = (to, subject, body) => "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(to || "") + "&su=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
   const emailText = (to, subject, body) => `To: ${to || ""}\nSubject: ${subject}\n\n${body}`;
   const claimLink = w => SITE + "/claim?c=" + w.claim_token;
+  const isMixer = w => w.kind === "mixer";
+  const partnerName = w => isMixer(w) ? "NutriMill" : "Grand Teton Ancient Grains";
   const isGrand = w => w.kind === "grand";
-  const prizeWords = w => isGrand(w) ? "the 25 lb grand prize" : "a 5 lb bag of grain";
-  const bagWords = w => isGrand(w) ? "25 lb bag" : "5 lb bag";
+  const prizeWords = w => isMixer(w) ? "a Bosch Universal Plus stand mixer" : isGrand(w) ? "the 25 lb grand prize" : "a 5 lb bag of grain";
+  const bagWords = w => isMixer(w) ? "Bosch Universal Plus stand mixer" : isGrand(w) ? "25 lb bag" : "5 lb bag";
   const addressLines = w => [w.ship_name, w.address1, w.address2, [w.city, w.ship_region, w.postal].filter(Boolean).join(", "), w.ship_country].filter(Boolean);
   const hasAddress = w => !!(w.address1 && w.city);
   const overdue = w => w.claim_expires_at && !hasAddress(w) && w.status === "notified" && new Date(w.claim_expires_at) < new Date();
@@ -52,7 +54,7 @@ window.AGCWinners = (() => {
     const ymd = from.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
     return DRAW_DATES.find(x => x > ymd) || FINALE;
   }
-  const weekOf = w => w.label || labelFor(w.drawn_at);
+  const weekOf = w => w.label || (isMixer(w) ? "Mixer · Dec 1" : labelFor(w.drawn_at));
 
   // Modules in lesson order, and the next one a baker hasn't finished.
   const modules = () => ctx.tasks.filter(t => t.category === "module" && t.active).sort((a, b) => a.sort - b.sort || a.key.localeCompare(b.key));
@@ -86,33 +88,38 @@ window.AGCWinners = (() => {
 
   function winnerEmail(w) {
     const due = w.claim_expires_at ? fmtDay(w.claim_expires_at) : fmtDay(new Date(Date.now() + 7 * 864e5));
-    const subject = isGrand(w) ? "You won the 25 lb grand prize in the Ancient Grain Challenge" : "You won a 5 lb bag of grain in the Ancient Grain Challenge";
+    const subject = isMixer(w) ? "You won the Bosch Universal Plus mixer in the Ancient Grain Challenge" : isGrand(w) ? "You won the 25 lb grand prize in the Ancient Grain Challenge" : "You won a 5 lb bag of grain in the Ancient Grain Challenge";
     const body = `Hi ${first(w.full_name)},
 
-Good news. Your name came up in the ${weekOf(w)} drawing for the Ancient Grain Challenge. You won ${prizeWords(w)} from Grand Teton Ancient Grains.
+Good news. Your name came up in the ${weekOf(w)} drawing for the Ancient Grain Challenge. You won ${prizeWords(w)} from ${partnerName(w)}.
 
-To get it shipped, open your private claim link and tell us where to send it and which grain you'd like:
+To get it shipped, open your private claim link and tell us where to send it${isMixer(w) ? "" : " and which grain you'd like"}:
 ${claimLink(w)}
 
-Please do that within 7 days, by ${due}. After that the bag goes back into the drawing for another baker.
+Please do that within 7 days, by ${due}. After that the prize goes back into the drawing for another baker.
 
-${isGrand(w) ? "" : progressLine(w) + "\n\n"}Congratulations, and keep baking.${SIGNATURE}`;
+${isGrand(w) || isMixer(w) ? "" : progressLine(w) + "\n\n"}Congratulations, and keep baking.${SIGNATURE}`;
     return { subject, body };
   }
   function reminderEmail(w) {
     const due = w.claim_expires_at ? fmtDay(w.claim_expires_at) : "the end of the week";
-    return { subject: `Quick reminder: your ${bagWords(w)} of grain is waiting`, body: `Hi ${first(w.full_name)},
+    return { subject: `Quick reminder: your ${bagWords(w)}${isMixer(w) ? "" : " of grain"} is waiting`, body: `Hi ${first(w.full_name)},
 
 Just a nudge. You won ${prizeWords(w)} in the Ancient Grain Challenge, and I haven't received your shipping details yet.
 
 Here's your private claim link again. It takes about a minute:
 ${claimLink(w)}
 
-I need it by ${due} so Grand Teton can ship this week's bags together. If I don't hear from you by then, the bag goes back into the drawing.
+I need it by ${due} so ${partnerName(w)} can ship your prize. If I don't hear from you by then, the prize goes back into the drawing.
 
-If the link gives you any trouble, just reply to this email with your address and the grain you'd like.${SIGNATURE}` };
+If the link gives you any trouble, just reply to this email with your address${isMixer(w) ? "" : " and the grain you'd like"}.${SIGNATURE}` };
   }
   function shippedEmail(w) {
+    if (isMixer(w)) return { subject: "Your Bosch Universal Plus mixer is on the way", body: `Hi ${first(w.full_name)},
+
+Your Bosch Universal Plus stand mixer shipped from NutriMill.${w.tracking ? "\n\nTracking: " + w.tracking : ""}
+
+I hope you enjoy baking with it. Share a photo in the Academy when it arrives. I'd love to see what you make.${SIGNATURE}` };
     return { subject: `Your ${bagWords(w)} of ${w.grain || "grain"} is on the way`, body: `Hi ${first(w.full_name)},
 
 Your ${bagWords(w)} of ${w.grain || "grain"} shipped from Grand Teton Ancient Grains in Driggs, Idaho.${w.tracking ? `
@@ -124,14 +131,21 @@ When it lands, mill it fresh if you can and bake something. Then post it in the 
 ${w.modules_verified >= 7 ? "You've finished all seven lessons, so you're still in the December 1 drawing for the 25 lb grand prize." : "You're still in the running for the 25 lb grand prize on December 1 once you finish all seven lessons."}${SIGNATURE}` };
   }
   function dmText(w) {
-    return `Congratulations, ${first(w.full_name)}! Your name came up in the ${weekOf(w)} drawing for the Ancient Grain Challenge. You won ${prizeWords(w)} from Grand Teton Ancient Grains.
+    return `Congratulations, ${first(w.full_name)}! Your name came up in the ${weekOf(w)} drawing for the Ancient Grain Challenge. You won ${prizeWords(w)} from ${partnerName(w)}.
 
-Tap this private link to tell us where to ship it and which grain you'd like. Please do it within 7 days:
+Tap this private link to tell us where to ship it${isMixer(w) ? "" : " and which grain you'd like"}. Please do it within 7 days:
 ${claimLink(w)}
 
 Keep the link to yourself, it's tied to your prize. Henry`;
   }
   function partnerEmail(list, label) {
+    if (list.some(isMixer)) return { subject: `Ancient Grain Challenge mixer winner, ${label}`, body: `Hello NutriMill team,
+
+Here is the Bosch Universal Plus stand mixer winner's shipping information. The same details are in the attached CSV.
+
+${list.map(w => [w.ship_name || w.full_name, ...addressLines(w).slice(1), w.phone ? "Phone: " + w.phone : ""].filter(Boolean).join("\n")).join("\n\n")}
+
+Please send me the tracking number when it ships so I can pass it to the winner. Thank you for providing the mixer.${SIGNATURE}` };
     const lines = list.map((w, i) => `${i + 1}. ${w.ship_name || w.full_name}
    ${[w.address1, w.address2].filter(Boolean).join(", ")}
    ${[w.city, w.ship_region, w.postal].filter(Boolean).join(", ")}, ${w.ship_country || w.country}${w.phone ? "\n   Phone: " + w.phone : ""}
@@ -148,51 +162,31 @@ If you can send me tracking numbers once they go out, I'll pass them along to th
   }
   function partnerCsv(list) {
     const cols = ["week", "prize", "ship_name", "address1", "address2", "city", "state_province", "postal", "country", "phone", "grain", "email", "drawn_at"];
-    const rows = list.map(w => [weekOf(w), bagWords(w), w.ship_name || w.full_name, w.address1, w.address2, w.city, w.ship_region, w.postal, w.ship_country || w.country, w.phone, w.grain || "Surprise me", w.email, new Date(w.drawn_at).toISOString().slice(0, 10)]);
+    const rows = list.map(w => [weekOf(w), bagWords(w), w.ship_name || w.full_name, w.address1, w.address2, w.city, w.ship_region, w.postal, w.ship_country || w.country, w.phone, isMixer(w) ? "" : w.grain || "Surprise me", w.email, new Date(w.drawn_at).toISOString().slice(0, 10)]);
     return [cols.join(","), ...rows.map(r => r.map(esc).join(","))].join("\n");
   }
 
   // ---------- announcements ----------
   function announcement(list, label) {
-    const next = nextDrawDate();
-    const isFinale = list.some(isGrand);
-    const bullets = list.map(w => `• ${publicName(w.full_name)}${w.region ? " (" + w.region + ")" : ""}: ${isGrand(w) ? "25 lb grand prize" : "5 lb bag"}${w.grain && w.grain !== "Surprise me" ? ", " + w.grain : ""}`).join("\n");
-    const count = list.filter(w => !isGrand(w)).length;
-    const nextLine = isFinale ? "" : `\n\nNext drawing is ${longDay(next)}. Finish one lesson and you're in. Every verified point is one more entry, and you can only win one 5 lb bag, so new names keep coming up.`;
-    const skool = `🎉 ${label} winners: Ancient Grain Challenge
-
-${count ? `${count === 1 ? "One baker" : count + " bakers"} just won a 5 lb bag of grain from Grand Teton Ancient Grains${isFinale ? ", and we have a grand prize winner" : ""}:` : "We have a grand prize winner:"}
+    const finale = list.some(w => isGrand(w) || isMixer(w));
+    const description = w => `${isMixer(w) ? "Bosch Universal Plus stand mixer from NutriMill" : isGrand(w) ? "25 lb grand prize from Grand Teton Ancient Grains" : "5 lb bag from Grand Teton Ancient Grains"}${!isMixer(w) && w.grain && w.grain !== "Surprise me" ? ", " + w.grain : ""}`;
+    const bullets = list.map(w => `• ${publicName(w.full_name)}${w.region ? " (" + w.region + ")" : ""}: ${description(w)}`).join("\n");
+    const next = finale ? "" : `Next drawing is ${longDay(nextDrawDate())}. Finish one lesson and you're in the grain drawing. Every verified point is one more entry, and you can only win one 5 lb bag. Registration also enters you in the December 1 mixer drawing, with one entry plus your verified points.`;
+    const text = `${label} winners: Ancient Grain Challenge
 
 ${bullets}
 
-Congratulations. Winners, check your email for a private claim link. Tell us where to ship and which grain you want.${nextLine}
-
-Haven't started? The lessons are short and free: ${SITE}/#lessons
-Already registered? Find your entry and see your progress: ${SITE}/#me`;
-    const facebook = `🎉 We just drew the ${label} winners in the Ancient Grain Challenge.
-
-${bullets}
-
-Each of them gets a 5 lb bag of grain from Grand Teton Ancient Grains, shipped to their door${isFinale ? ", and one takes home the 25 lb grand prize" : ""}.
-
-This challenge is free and open to everyone, not just Academy members. Watch a short lesson on ancient grains or fresh-milled flour, pass the quiz, and your name goes in the hat.${nextLine}
-
-Start here: ${SITE}`;
-    const newsletterHtml = `<h2>${html(label)} winners: Ancient Grain Challenge</h2>
-<p>${count ? `${count === 1 ? "One baker" : count + " bakers"} won a 5 lb bag of grain from Grand Teton Ancient Grains this week` : "We have a grand prize winner"}:</p>
-<ul>
-${list.map(w => `  <li><strong>${html(publicName(w.full_name))}</strong>${w.region ? ", " + html(w.region) : ""}: ${isGrand(w) ? "25 lb grand prize" : "5 lb bag"}${w.grain && w.grain !== "Surprise me" ? ", " + html(w.grain) : ""}</li>`).join("\n")}
-</ul>
-${isFinale ? "" : `<p>Next drawing is ${longDay(next)}. Finish one lesson and you're in. Finish all seven and you qualify for the 25 lb grand prize on December 1.</p>`}
-<p><a href="${SITE}/#lessons">Watch the next lesson</a> · <a href="${SITE}/#me">Check your entry</a></p>`;
-    const newsletterText = `${label} winners: Ancient Grain Challenge
-
-${bullets}
-${isFinale ? "" : `
-Next drawing is ${longDay(next)}. Finish one lesson and you're in. Finish all seven and you qualify for the 25 lb grand prize on December 1.`}
-Watch the next lesson: ${SITE}/#lessons
+Congratulations. Winners, check your email for your private prize claim link and send your shipping details.
+${next ? "\n" + next + "\n" : ""}
+Watch the lessons: ${SITE}/#lessons
 Check your entry: ${SITE}/#me`;
-    return { skool, facebook, newsletterHtml, newsletterText };
+    const newsletterHtml = `<h2>${html(label)} winners: Ancient Grain Challenge</h2>
+<ul>
+${list.map(w => `  <li><strong>${html(publicName(w.full_name))}</strong>${w.region ? ", " + html(w.region) : ""}: ${html(description(w))}</li>`).join("\n")}
+</ul>
+${next ? `<p>${html(next)}</p>` : ""}
+<p><a href="${SITE}/#lessons">Watch the lessons</a> · <a href="${SITE}/#me">Check your entry</a></p>`;
+    return { skool: "🎉 " + text, facebook: "🎉 " + text, newsletterHtml, newsletterText: text };
   }
 
   // ---------- nudges ----------
@@ -236,19 +230,20 @@ Henry`;
 
   // ---------- rendering ----------
   function pill(w) {
-    const map = { drawn: ["pending", "Needs notice"], notified: ["pending", "Waiting on address"], address_received: ["verified", "Ready for Grand Teton"], sent_to_partner: ["req", "At Grand Teton"], shipped: ["verified", "Shipped"], forfeited: ["rejected", "Forfeited"] };
+    const partner = isMixer(w) ? "NutriMill" : "Grand Teton";
+    const map = { drawn: ["pending", "Needs notice"], notified: ["pending", "Waiting on address"], address_received: ["verified", `Ready for ${partner}`], sent_to_partner: ["req", `At ${partner}`], shipped: ["verified", "Shipped"], forfeited: ["rejected", "Forfeited"] };
     const [cls, text] = map[w.status] || ["pending", w.status];
     return el("span", { class: "pill " + cls, text: overdue(w) ? "Past 7 days" : text });
   }
   function timeline(w) {
-    const steps = [["Drawn", w.drawn_at], ["Notified", w.notified_at], ["Reminded", w.reminded_at], ["Address", w.address_received_at], ["To Grand Teton", w.sent_to_partner_at], ["Shipped", w.shipped_at], ["Announced", w.announced_at]];
+    const steps = [["Drawn", w.drawn_at], ["Notified", w.notified_at], ["Reminded", w.reminded_at], ["Address", w.address_received_at], [`To ${isMixer(w) ? "NutriMill" : "Grand Teton"}`, w.sent_to_partner_at], ["Shipped", w.shipped_at], ["Announced", w.announced_at]];
     return el("div", { class: "muted", style: "font-size:.85rem;display:flex;flex-wrap:wrap;gap:6px 14px" }, ...steps.map(([n, t]) => el("span", { style: t ? "" : "opacity:.5" }, `${t ? "✓" : "○"} ${n}${t ? " " + fmt(t) : ""}`)));
   }
   function addressForm(w, onSaved) {
     const f = {};
     const inp = (k, label, val) => el("label", {}, label, f[k] = el("input", { value: val || "" }));
     const form = el("div", { class: "stack", style: "gap:8px" },
-      el("div", { class: "grid2" }, inp("ship_name", "Name on label", w.ship_name || w.full_name), inp("grain", "Grain", w.grain)),
+      el("div", { class: "grid2" }, inp("ship_name", "Name on label", w.ship_name || w.full_name), isMixer(w) ? null : inp("grain", "Grain", w.grain)),
       inp("address1", "Street", w.address1), inp("address2", "Apt / unit", w.address2),
       el("div", { class: "grid2" }, inp("city", "City", w.city), inp("region", "State / province", w.ship_region)),
       el("div", { class: "grid2" }, inp("postal", "ZIP / postal", w.postal), inp("country", "Country", w.ship_country || w.country)),
@@ -279,7 +274,7 @@ Henry`;
     if (w.status === "sent_to_partner") actions.append(link("Open shipped email in Gmail", compose(w.email, shipped.subject, shipped.body)), copyBtn(emailText(w.email, shipped.subject, shipped.body), "Copy email"), act("Mark shipped", () => mark(w, "shipped")));
     if (!w.announced_at && w.status !== "forfeited") actions.append(act("Mark announced", () => mark(w, "announced"), "ghost small"));
     if (["drawn", "notified"].includes(w.status)) {
-      const forfeit = act("Forfeit (no reply)", async () => { if (confirm(`Forfeit ${w.full_name}'s ${bagWords(w)}? They won't be able to claim it, and the bag goes back to the pool for the next draw.`)) await mark(w, "forfeited"); else forfeit.disabled = false; }, "ghost small");
+      const forfeit = act("Forfeit (no reply)", async () => { if (confirm(`Forfeit ${w.full_name}'s ${bagWords(w)}? They won't be able to claim it, and the prize goes back to the pool for the next draw.`)) await mark(w, "forfeited"); else forfeit.disabled = false; }, "ghost small");
       actions.append(forfeit);
     }
     actions.append(msg);
@@ -288,15 +283,15 @@ Henry`;
     const toggle = el("button", { type: "button", class: "ghost small" }, hasAddress(w) ? "Edit details" : "Enter address by hand");
     toggle.onclick = () => { details.hidden = !details.hidden; if (!details.hidden && !details.childElementCount) details.append(addressForm(w, () => details.hidden = true)); };
 
-    const labelIn = el("input", { value: w.label || "", placeholder: labelFor(w.drawn_at), style: "max-width:200px" });
-    const labelSave = act("Save label", async () => { const r = await rpc("admin_set_draw_label", { p_key: ctx.key, p_draw_id: w.draw_id, p_label: labelIn.value.trim() || labelFor(w.drawn_at) }); if (r.error) throw 0; await load(); }, "ghost small");
+    const labelIn = el("input", { value: w.label || "", placeholder: weekOf(w), style: "max-width:200px" });
+    const labelSave = act("Save label", async () => { const r = await rpc("admin_set_draw_label", { p_key: ctx.key, p_draw_id: w.draw_id, p_label: labelIn.value.trim() || weekOf(w) }); if (r.error) throw 0; await load(); }, "ghost small");
 
     const notes = el("textarea", { rows: 2, placeholder: "Notes (replied by email, asked for Spelt instead, etc.)" }); notes.value = w.notes || "";
     const notesSave = act("Save note", async () => { const r = await rpc("admin_winner_edit", { p_key: ctx.key, p_draw_id: w.draw_id, p_fields: { notes: notes.value.trim() } }); if (r.error) throw 0; await load(); }, "ghost small");
 
     return el("div", { class: "card winner stack", style: "gap:8px" },
       el("div", { class: "bar", style: "justify-content:space-between" },
-        el("strong", { text: `${weekOf(w)} · ${w.prize}: ${w.full_name} (${w.grain || w.preferred_grain || "no grain chosen"})` }), pill(w)),
+        el("strong", { text: `${weekOf(w)} · ${w.prize}: ${w.full_name}${isMixer(w) ? "" : " (" + (w.grain || w.preferred_grain || "no grain chosen") + ")"}` }), pill(w)),
       el("span", { class: "muted", text: `${w.email} · ${[w.region, w.country].filter(Boolean).join(", ")} · From: ${w.skool_name} · ${w.modules_verified}/7 lessons · ${w.entries} entries of ${w.pool_size} · drawn ${fmt(w.drawn_at)}` }),
       timeline(w),
       overdue(w) ? el("p", { class: "msg err", text: `No address and the 7 day window closed ${fmtDay(w.claim_expires_at)}. Send one more reminder or forfeit and draw again.` }) : null,
@@ -315,7 +310,7 @@ Henry`;
     if (weeks.includes(current)) sel.value = current;
     const list = winners.filter(w => !sel.value || weekOf(w) === sel.value);
     const by = s => winners.filter(w => w.status === s).length;
-    $("win-tiles").replaceChildren(...[["Need notice", by("drawn")], ["Waiting on address", by("notified")], ["Ready for Grand Teton", by("address_received")], ["At Grand Teton", by("sent_to_partner")], ["Shipped", by("shipped")]]
+    $("win-tiles").replaceChildren(...[["Need notice", by("drawn")], ["Waiting on address", by("notified")], ["Ready for partner", by("address_received")], ["At partner", by("sent_to_partner")], ["Shipped", by("shipped")]]
       .map(([l, n]) => el("div", { class: "tile" }, el("b", { text: String(n) }), el("span", { class: "muted", text: l }))));
     const unlabeled = winners.filter(w => !w.label);
     $("win-fix-labels").hidden = !unlabeled.length;
@@ -324,26 +319,34 @@ Henry`;
   }
 
   function renderPartner() {
+    const mixer = $("partner-kind").value === "mixer";
+    const partner = mixer ? "NutriMill" : "Grand Teton";
+    const slug = mixer ? "nutrimill" : "grand-teton";
+    const belongs = w => isMixer(w) === mixer;
+    $("partner-email-label").textContent = partner + " email";
+    $("partner-mail").textContent = `Open email to ${partner} in Gmail`;
+    $("partner-mark").textContent = `Mark batch sent to ${partner}`;
+    $("partner-all").textContent = `Download every ${mixer ? "mixer" : "grain"} winner with an address`;
     const to = $("partner-email").value.trim();
-    const ready = winners.filter(w => w.status === "address_received");
+    const ready = winners.filter(w => belongs(w) && w.status === "address_received");
     const label = [...new Set(ready.map(weekOf))].join(" + ") || "this week";
     const mail = partnerEmail(ready, label);
-    $("partner-count").textContent = ready.length ? `${ready.length} ${ready.length === 1 ? "bag is" : "bags are"} ready to send to Grand Teton (${label}). Download the CSV, open the email and attach it, then mark them sent.` : "Nothing waiting. Winners show up here once their address is in.";
+    $("partner-count").textContent = ready.length ? `${ready.length} ${mixer ? "mixer is" : ready.length === 1 ? "bag is" : "bags are"} ready to send to ${partner} (${label}). Download the CSV, open the email and attach it, then mark them sent.` : "Nothing waiting. Winners show up here once their address is in.";
     $("partner-table").replaceChildren(...ready.map(w => el("div", { class: "winner-row" },
-      el("strong", { text: w.ship_name || w.full_name }), el("span", { class: "muted", text: addressLines(w).slice(1).join(", ") + (w.phone ? " · " + w.phone : "") }), el("span", { class: "pill verified", text: (w.grain || "Surprise me") + " · " + bagWords(w) }))));
+      el("strong", { text: w.ship_name || w.full_name }), el("span", { class: "muted", text: addressLines(w).slice(1).join(", ") + (w.phone ? " · " + w.phone : "") }), el("span", { class: "pill verified", text: (isMixer(w) ? "" : (w.grain || "Surprise me") + " · ") + bagWords(w) }))));
     $("partner-csv").disabled = !ready.length;
-    $("partner-csv").onclick = () => download(`grand-teton-shipments-${new Date().toISOString().slice(0, 10)}.csv`, partnerCsv(ready));
+    $("partner-csv").onclick = () => download(`${slug}-shipments-${new Date().toISOString().slice(0, 10)}.csv`, partnerCsv(ready));
     const a = $("partner-mail"); a.href = compose(to, mail.subject, mail.body); $("partner-copy").onclick = async () => { try { await navigator.clipboard.writeText(emailText(to, mail.subject, mail.body)); $("partner-copy").textContent = "Copied"; setTimeout(() => $("partner-copy").textContent = "Copy email text", 1500); } catch {} }; $("partner-copy").disabled = !ready.length; a.classList.toggle("disabled", !ready.length); a.setAttribute("aria-disabled", String(!ready.length));
     $("partner-mark").disabled = !ready.length;
     $("partner-mark").onclick = async () => {
-      if (!confirm(`Mark ${ready.length} winner${ready.length === 1 ? "" : "s"} as sent to Grand Teton? Their claim links lock after this.`)) return;
+      if (!confirm(`Mark ${ready.length} winner${ready.length === 1 ? "" : "s"} as sent to ${partner}? Their claim links lock after this.`)) return;
       $("partner-mark").disabled = true;
       for (const w of ready) await rpc("admin_winner_mark", { p_key: ctx.key, p_draw_id: w.draw_id, p_event: "sent_to_partner" });
       await load();
     };
-    const all = winners.filter(hasAddress);
+    const all = winners.filter(w => belongs(w) && hasAddress(w));
     $("partner-all").disabled = !all.length;
-    $("partner-all").onclick = () => download("grand-teton-all-winners.csv", partnerCsv(all));
+    $("partner-all").onclick = () => download(`${slug}-all-winners.csv`, partnerCsv(all));
   }
 
   function renderAnnounce() {
@@ -361,7 +364,7 @@ Henry`;
     markAll.onclick = async () => { markAll.disabled = true; for (const w of unannounced) await rpc("admin_winner_mark", { p_key: ctx.key, p_draw_id: w.draw_id, p_event: "announced" }); await load(); };
     box.replaceChildren(
       block("Skool post (Crust & Crumb Academy)", a.skool),
-      block("Facebook post (Baking Great Bread at Home)", a.facebook, "Add your photo of the bags or the Grand Teton image."),
+      block("Facebook post (Baking Great Bread at Home)", a.facebook, "Add a photo of the prizes or the giveaway graphic."),
       block("Newsletter block, HTML (paste into the Recipe Pantry newsletter editor)", a.newsletterHtml),
       block("Newsletter block, plain text", a.newsletterText),
       el("div", { class: "bar" }, markAll));
@@ -388,8 +391,9 @@ Henry`;
         el("td", { text: fmt(lastActivity(e)) }),
         el("td", {}, el("a", { class: "btn-link ghost-link", style: "padding:6px 12px;font-size:.85rem", href: compose(e.email, m.subject, m.body), target: "_blank", rel: "noopener", text: "Open nudge in Gmail" }), " ", copyBtn(emailText(e.email, m.subject, m.body), "Copy")));
     }));
-    const thisWeek = winners.filter(w => w.status !== "forfeited" && weekOf(w) === weekOf(winners[0] || { drawn_at: new Date() }));
-    const blast = $("nudge-blast"); blast.value = blastText(weekOf(winners[0] || { drawn_at: new Date() }), thisWeek);
+    const grainWinners = winners.filter(w => !isMixer(w));
+    const thisWeek = grainWinners.filter(w => w.status !== "forfeited" && weekOf(w) === weekOf(grainWinners[0] || { drawn_at: new Date() }));
+    const blast = $("nudge-blast"); blast.value = blastText(weekOf(grainWinners[0] || { drawn_at: new Date() }), thisWeek);
   }
 
   async function load() {
@@ -406,11 +410,13 @@ Henry`;
     $("ann-week").onchange = renderAnnounce;
     $("nudge-filter").onchange = renderNudges;
     $("partner-email").value = ls.get("agc_partner_email") || "";
-    $("partner-email").oninput = () => { ls.set("agc_partner_email", $("partner-email").value.trim()); renderPartner(); };
+    const partnerKey = () => $("partner-kind").value === "mixer" ? "agc_nutrimill_email" : "agc_partner_email";
+    $("partner-kind").onchange = () => { $("partner-email").value = ls.get(partnerKey()) || ""; renderPartner(); };
+    $("partner-email").oninput = () => { ls.set(partnerKey(), $("partner-email").value.trim()); renderPartner(); };
     $("nudge-blast-copy").onclick = async () => { try { await navigator.clipboard.writeText($("nudge-blast").value); $("nudge-blast-copy").textContent = "Copied"; setTimeout(() => $("nudge-blast-copy").textContent = "Copy", 1500); } catch {} };
     $("win-fix-labels").onclick = async () => {
       $("win-fix-labels").disabled = true;
-      for (const w of winners.filter(x => !x.label)) await rpc("admin_set_draw_label", { p_key: ctx.key, p_draw_id: w.draw_id, p_label: labelFor(w.drawn_at) });
+      for (const w of winners.filter(x => !x.label)) await rpc("admin_set_draw_label", { p_key: ctx.key, p_draw_id: w.draw_id, p_label: weekOf(w) });
       await load(); $("win-fix-labels").disabled = false;
     };
     const dl = $("draw-label"); if (dl && !dl.value) dl.placeholder = labelFor(new Date());

@@ -190,3 +190,108 @@ test('newsletter escapes winner fields and CSV neutralizes formulas', async ({ p
     expect(row.text.split(neutralized).length - 1).toBe(4);
   }
 });
+
+test('mixer draw uses its own kind and prize after explicit confirmation', async ({ page }) => {
+  await mock(page);
+  await page.goto('/admin');
+  await page.fill('#key', 'local-only');
+  await page.click('#login button[type=submit]');
+  await expect(page.locator('#win-list')).toContainText('Winnie Baker');
+  await page.selectOption('#draw-kind', 'mixer');
+  await page.route('**/rpc/admin_draw', route => {
+    calls.push({ name: 'admin_draw', body: route.request().postDataJSON() });
+    return route.fulfill({ json: { name: 'Synthetic Baker', entries: 1, pool_size: 4 } });
+  });
+  await page.click('#draw-arm');
+  expect(calls.some(c => c.name === 'admin_draw')).toBe(false);
+  await page.click('#draw-go');
+  await expect(page.locator('#draw-msg')).toContainText('Synthetic Baker');
+  expect(calls.find(c => c.name === 'admin_draw').body).toMatchObject({ p_kind: 'mixer', p_prize: 'Bosch Universal Plus stand mixer', p_label: 'Mixer · Dec 1' });
+});
+
+test('mixer fulfillment routes only its winner to NutriMill and uses mixer messages', async ({ page }) => {
+  await mock(page);
+  const grain = { ...winner, status: 'address_received', ship_name: 'Grain Winner', address1: '1 Grain St', city: 'Columbus' };
+  Object.assign(winner, { draw_id: 'd-mixer', kind: 'mixer', prize: 'Bosch Universal Plus stand mixer', label: 'Mixer · Dec 1', full_name: 'Mixer Baker', email: 'mixer@example.invalid', modules_verified: 0, status: 'drawn', grain: '' });
+  await page.route('**/rpc/admin_winners', route => route.fulfill({ json: [grain, winner] }));
+  await page.goto('/admin');
+  await page.fill('#key', 'local-only');
+  await page.click('#login button[type=submit]');
+  const card = page.locator('#win-list .winner', { hasText: 'Mixer Baker' });
+  const notice = decodeURIComponent(await card.getByRole('link', { name: 'Open winner email in Gmail' }).getAttribute('href'));
+  expect(notice).toContain('Bosch Universal Plus');
+  expect(notice).toContain('NutriMill');
+  expect(notice).not.toMatch(/which grain|25 lb|Grand Teton/);
+  await card.getByRole('button', { name: 'Mark notified' }).click();
+  const reminder = decodeURIComponent(await card.getByRole('link', { name: 'Open reminder email in Gmail' }).getAttribute('href'));
+  expect(reminder).toContain('NutriMill');
+  expect(reminder).not.toContain('of grain');
+  Object.assign(winner, { status: 'address_received', address1: '2 Mixer St', city: 'Columbus', ship_name: 'Mixer Baker' });
+  await page.click('#refresh');
+  await expect(page.locator('#partner-table')).toContainText('Grain Winner');
+  await expect(page.locator('#partner-table')).not.toContainText('Mixer Baker');
+  await page.fill('#partner-email', 'grain-partner@example.invalid');
+  await page.selectOption('#partner-kind', 'mixer');
+  await expect(page.locator('#partner-email')).toHaveValue('');
+  await page.fill('#partner-email', 'mixer-partner@example.invalid');
+  await expect(page.locator('#partner-table')).toContainText('Mixer Baker');
+  await expect(page.locator('#partner-table')).not.toContainText('Grain Winner');
+  const mail = decodeURIComponent(await page.locator('#partner-mail').getAttribute('href'));
+  expect(mail).toContain('mixer-partner@example.invalid');
+  expect(mail).toContain('2 Mixer St');
+  expect(mail).not.toMatch(/1 Grain St|Spelt|Adam|Jade/);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#partner-all')]);
+  expect(dl.suggestedFilename()).toBe('nutrimill-all-winners.csv');
+  const fs = require('node:fs');
+  const csv = fs.readFileSync(await dl.path(), 'utf8');
+  expect(csv).toContain('Mixer Baker');
+  expect(csv).not.toMatch(/Grain Winner|Spelt/);
+  await page.selectOption('#ann-week', 'Mixer · Dec 1');
+  await expect(page.locator('#ann-out textarea').first()).toHaveValue(/Mixer B\..*Bosch Universal Plus stand mixer from NutriMill/);
+  await expect(page.locator('#ann-out textarea').first()).not.toHaveValue(/5 lb bag|which grain/);
+  page.once('dialog', dialog => dialog.accept());
+  await page.click('#partner-mark');
+  await expect(card).toContainText('At NutriMill');
+  expect(calls.filter(c => c.name === 'admin_winner_mark' && c.body.p_event === 'sent_to_partner').map(c => c.body.p_draw_id)).toEqual(['d-mixer']);
+  const shipped = decodeURIComponent(await card.getByRole('link', { name: 'Open shipped email in Gmail' }).getAttribute('href'));
+  expect(shipped).toContain('NutriMill');
+  expect(shipped).not.toMatch(/25 lb|Grand Teton|of grain/);
+  await page.selectOption('#partner-kind', 'grain');
+  await expect(page.locator('#partner-email')).toHaveValue('grain-partner@example.invalid');
+});
+
+test('mixer claim collects an address without asking for grain', async ({ page }) => {
+  await mock(page);
+  await page.route('**/rpc/winner_claim', route => route.fulfill({ json: { first_name: 'Mixer', kind: 'mixer', grain: '', locked: false, closed: false } }));
+  await page.goto(`/claim?c=${TOKEN}`);
+  await expect(page.locator('#lede')).toContainText('Bosch Universal Plus stand mixer from NutriMill');
+  await expect(page.locator('#grain-field')).toBeHidden();
+  await expect(page.locator('#privacy-copy')).toContainText('NutriMill');
+  for (const [field, text] of Object.entries({ ship_name: 'Synthetic Winner', address1: '2 Mixer St', city: 'Columbus', region: 'OH', postal: '43215' })) await page.fill('#' + field, text);
+  await page.click('#send');
+  await expect(page.locator('#done')).toBeVisible();
+  await expect(page.locator('#done-copy')).toContainText('NutriMill');
+  expect(calls.find(c => c.name === 'winner_claim_submit').body.p_grain).toBe('');
+});
+
+test('public mixer announcement and rules agree at mobile and desktop widths', async ({ page }) => {
+  await mock(page);
+  await page.route('**/rpc/winners', route => route.fulfill({ json: [{ kind: 'mixer', name: 'Synthetic B.', label: 'Mixer · Dec 1' }] }));
+  await page.goto('/');
+  await expect(page.locator('.prize-row')).toContainText('Bosch Universal Plus from NutriMill');
+  await expect(page.locator('#winners-list')).toContainText('Stand mixer');
+  await expect(page.locator('#me img[src="img/ancient-grain-prize-banner.svg"]')).toHaveCount(1);
+  await expect(page.locator('#rules')).toContainText('Each verified point adds one more entry.');
+  await expect(page.locator('#rules')).toContainText("Winning grain doesn't stop you from winning the mixer.");
+  for (const width of [393, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const image = page.locator('img[src="img/mixer-giveaway.jpg"]');
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate(n => n.complete && n.naturalWidth)).toBe(1200);
+    const box = await image.boundingBox();
+    expect(Math.abs(box.width / box.height - 1200 / 675)).toBeLessThan(.02);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-output/mixer-public-${width}.png`, fullPage: true });
+    await page.locator('header.hero').screenshot({ path: `test-output/mixer-hero-${width}.png` });
+  }
+});
