@@ -48,6 +48,7 @@ section { padding-block: 44px; border-top: 1px solid var(--line); }
 .hero h1 em { font-style: italic; color: var(--accent); font-weight: 500; }
 .hero-img { width: 100%; max-height: 380px; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); }
 .lede { font-size: 1.13rem; max-width: 60ch; }
+.hero-img.mixer-img { max-height: none; height: auto; object-fit: contain; }
 .prize-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 8px; }
 .prize { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: flex; gap: 14px; align-items: center; }
 .weight { font: 700 1.9rem/1 var(--display); color: var(--field); font-variant-numeric: tabular-nums; min-width: 3.2ch; }

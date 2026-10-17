@@ -84,9 +84,9 @@
   <section>
     <div class="wrap wide stack">
       <h2>The drawings</h2>
-      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday, October 16 through November 27. <strong>December 1:</strong> use the final 5 lb bag option twice, then the grand prize option. Both require all seven lessons. A baker can win one 5 lb bag across all dates; earlier 5 lb winners remain eligible for the grand prize. Explicitly flagged test entries and removed entries are excluded from every pool. Each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
+      <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday, October 16 through November 27. <strong>December 1:</strong> use the final 5 lb bag option twice, then the grand prize option. Both grain options require all seven lessons. Then use the mixer option once: every registered baker has one entry plus their verified points, with no lesson required. Winning grain does not affect mixer eligibility. A baker can win one 5 lb bag across all dates; earlier 5 lb winners remain eligible for the grand prize. Explicitly flagged test entries and removed entries are excluded from every pool. For grain, each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
       <div class="bar">
-        <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="final_small">December 1: final 5 lb bag (all seven lessons)</option><option value="grand">Grand prize: 25 lb bag</option></select></label>
+        <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="final_small">December 1: final 5 lb bag (all seven lessons)</option><option value="grand">Grand prize: 25 lb bag</option><option value="mixer">December 1: Bosch Universal Plus mixer (all registered bakers)</option></select></label>
         <label for="draw-label" style="flex:1 1 200px">Label <input id="draw-label" placeholder="Week 1 · Oct 16"></label>
         <button type="button" id="draw-arm" style="align-self:end">Draw a winner</button>
         <button type="button" id="draw-go" hidden style="align-self:end">Yes, draw now</button>
@@ -100,7 +100,7 @@
   <section id="winners-desk">
     <div class="wrap wide stack">
       <h2>Winners and prizes</h2>
-      <p class="muted">Every draw lands here with its own private claim link. The order each week: open the winner email and send it, mark notified, wait for the address (the link does the asking), send the week's list to Grand Teton, mark shipped when Adam confirms. Nothing here changes the draw itself.</p>
+      <p class="muted">Every draw lands here with its own private claim link. The order each week: open the winner email and send it, mark notified, wait for the address (the link does the asking), send grain winners to Grand Teton and the mixer winner to NutriMill using separate shipment lists, then mark shipped when the partner confirms. Nothing here changes the draw itself.</p>
       <div class="tiles" id="win-tiles"></div>
       <div class="bar">
         <label for="win-week">Show <select id="win-week"></select></label>
@@ -112,10 +112,11 @@
 
   <section>
     <div class="wrap wide stack">
-      <h2>Send the shipment list to Grand Teton</h2>
-      <p class="muted">Winners appear here once their shipping address is in. Enter Adam's email once and it's remembered on this computer.</p>
+      <h2>Send the shipment list to a partner</h2>
+      <p class="muted">Grain winners go to Grand Teton; the mixer winner goes to NutriMill. Choose the partner to prepare a separate shipment list. Each partner's email is remembered on this computer.</p>
       <div class="bar">
-        <label for="partner-email">Grand Teton email <input id="partner-email" type="email" placeholder="adam@..." autocomplete="off"></label>
+        <label for="partner-kind">Partner <select id="partner-kind"><option value="grain">Grand Teton Ancient Grains</option><option value="mixer">NutriMill</option></select></label>
+        <label for="partner-email"><span id="partner-email-label">Grand Teton email</span> <input id="partner-email" type="email" autocomplete="off"></label>
       </div>
       <p id="partner-count" class="muted"></p>
       <div id="partner-table" class="stack" style="gap:0"></div>
@@ -300,8 +301,9 @@
     try {
       const kind = document.getElementById("draw-kind").value;
       const typed = document.getElementById("draw-label").value.trim();
-      const label = typed || (window.AGCWinners ? AGCWinners.labelFor(new Date()) : null);
-      const r = await rpc("admin_draw", { p_key: key, p_prize: kind === "grand" ? "Grand prize: 25 lb bag" : "5 lb bag", p_kind: kind, p_label: label });
+      const label = kind === "mixer" ? "Mixer · Dec 1" : typed || (window.AGCWinners ? AGCWinners.labelFor(new Date()) : null);
+      const prize = kind === "mixer" ? "Bosch Universal Plus stand mixer" : kind === "grand" ? "Grand prize: 25 lb bag" : "5 lb bag";
+      const r = await rpc("admin_draw", { p_key: key, p_prize: prize, p_kind: kind, p_label: label });
       if (r.error === "empty") { dmsg.className = "msg err"; dmsg.textContent = kind === "weekly" ? "No eligible bakers left for a Friday draw." : "No qualified bakers left in the pool."; }
       else if (r.error === "prize_limit") { dmsg.className = "msg err"; dmsg.textContent = "All prizes for this drawing type have already been drawn."; }
       else if (r.error) throw 0;
