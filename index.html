@@ -69,6 +69,9 @@
 
 <section aria-labelledby="me">
   <div class="wrap stack">
+    <figure style="margin:0 0 1.25rem">
+      <img src="img/ancient-grain-prize-banner.svg" alt="Ancient Grain Challenge giveaway announcement: a Bosch Universal Plus stand mixer joins the weekly 5-pound grain prizes and 25-pound grand prize. Register for free." width="1672" height="941" loading="lazy" decoding="async" style="display:block;width:100%;height:auto;border-radius:14px">
+    </figure>
     <h2 id="me">Your entry &amp; private code</h2>
     <p>Register today. Learn at your own pace. You don’t need to complete a lesson or quiz to sign up. No Academy membership or payment is needed. 30 winners will each receive one 5-pound bag of grain.</p>
     <div id="pending-quiz"></div>
@@ -138,7 +141,9 @@
     <div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Baker</th><th>Qualified</th><th class="num">Points</th></tr></thead>
       <tbody id="board"><tr><td colspan="4" class="muted">No one's on the board yet. Register and be the first.</td></tr></tbody>
+      <tbody id="board-extra" style="display:none"></tbody>
     </table></div>
+    <button type="button" id="board-toggle" class="ghost small" aria-controls="board-extra" aria-expanded="false" style="display:none">Show all bakers</button>
   </div>
 </section>
 
@@ -256,16 +261,36 @@
 
   async function loadBoard() {
     const body = document.getElementById("board");
+    const extra = document.getElementById("board-extra");
+    const toggle = document.getElementById("board-toggle");
     try {
       const rows = await rpc("leaderboard");
       if (!rows.length) return;
-      body.replaceChildren(...rows.map((r, i) => el("tr", {},
+      const renderRow = (r, i) => el("tr", {},
         el("td", { text: String(i + 1) }),
         el("td", { text: r.name }),
         el("td", { text: r.qualified ? "✓" : "" }),
-        el("td", { class: "num", text: String(r.points) }))));
+        el("td", { class: "num", text: String(r.points) }));
+      body.replaceChildren(...rows.slice(0, 5).map(renderRow));
+      extra.replaceChildren(...rows.slice(5).map((r, i) => renderRow(r, i + 5)));
+      extra.style.display = "none";
+      toggle.setAttribute("aria-expanded", "false");
+      if (rows.length > 5) {
+        toggle.style.display = "inline-flex";
+        toggle.textContent = `Show all ${rows.length} bakers`;
+        toggle.onclick = () => {
+          const expanding = toggle.getAttribute("aria-expanded") !== "true";
+          extra.style.display = expanding ? "table-row-group" : "none";
+          toggle.setAttribute("aria-expanded", String(expanding));
+          toggle.textContent = expanding ? "Show top 5 only" : `Show all ${rows.length} bakers`;
+        };
+      } else {
+        toggle.style.display = "none";
+      }
     } catch {
       body.replaceChildren(el("tr", {}, el("td", { colspan: "4", class: "muted", text: "Couldn't load the leaderboard. Refresh to try again." })));
+      extra.replaceChildren();
+      toggle.style.display = "none";
     }
   }
 
