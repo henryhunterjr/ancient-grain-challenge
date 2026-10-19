@@ -316,7 +316,7 @@ test('next-lesson emails: preview, two-tap send, emailed column', async ({ page 
   await page.fill('#key', 'local-only');
   await page.click('#login button[type=submit]');
   const send = page.locator('#pm-send');
-  await expect(send).toHaveText('Email 3 bakers their next lesson');
+  await expect(send).toHaveText('Email 3 bakers');
   await page.click('#pm-test');
   await expect(page.locator('#pm-msg')).toContainText('Preview sent to henrysbreadkitchen@gmail.com');
   await send.click();

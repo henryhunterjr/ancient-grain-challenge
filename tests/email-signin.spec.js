@@ -105,6 +105,13 @@ test('tapping a personal link again on a signed-in browser just opens the lesson
   await page.waitForURL('**/lesson?m=m7');
 });
 
+test('finished baker link signs in and opens Your entry',async({page})=>{
+  await fixture(page,(route,body)=>body.action==='redeem'?route.fulfill({json:{token:A,first_name:'Alice'}}):generic(route));
+  await page.goto(`/recover-entry#r=${CRED}&auto=1`);
+  await page.waitForURL(u=>u.hash==='#me');
+  expect(await page.evaluate(()=>localStorage.getItem('agc_token'))).toBe(A);
+});
+
 test('one-time links still wait for a tap',async({page})=>{
   const calls=await fixture(page,generic);
   await page.goto(`/recover-entry#r=${CRED}&next=m7`);
