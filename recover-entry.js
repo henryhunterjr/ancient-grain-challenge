@@ -8,7 +8,7 @@
   const next = /^m[1-9]$/.test(one('next') || '') ? one('next') : null;
   // Personal lesson links from Henry's progress emails are reusable for 7 days,
   // so they sign in without a second tap. One-time links still wait for a tap.
-  const auto = one('auto') === '1' && !!next && !params.has('quiz');
+  const auto = one('auto') === '1' && !params.has('quiz');
   // Strip the link from the address bar and history before anything else runs.
   history.replaceState(null, '', location.pathname);
 
@@ -38,7 +38,7 @@
     const d = r.data || {};
     if (!r.ok || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.token || '') || typeof d.first_name !== 'string') {
       // Already signed in on this browser from an earlier tap: just keep moving.
-      if (store.get('agc_token') && next && !carried) { location.replace('/lesson?m=' + next); return; }
+      if (store.get('agc_token') && auto) { location.replace(next ? '/lesson?m=' + next : '/#me'); return; }
       askAgain('This sign-in link has expired or was already used. Request a new one below; your entry and points are safe.'); return;
     }
     store.set('agc_token', d.token);

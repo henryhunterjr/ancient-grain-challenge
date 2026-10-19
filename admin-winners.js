@@ -413,7 +413,7 @@ Henry`;
       if (!r.ok) throw new Error(r.data.error || r.status);
       mailed = new Map(r.data.rows.map(x => [x.entrant_id, x]));
       pmEligible = r.data.eligible; pmArmed = false;
-      btn.textContent = pmEligible ? `Email ${pmEligible} baker${pmEligible === 1 ? "" : "s"} their next lesson` : "Everyone is up to date";
+      btn.textContent = pmEligible ? `Email ${pmEligible} baker${pmEligible === 1 ? "" : "s"}` : "Everyone is up to date";
       btn.disabled = !pmEligible;
       if (r.data.recently_emailed) msg.textContent = `${r.data.recently_emailed} baker${r.data.recently_emailed === 1 ? " was" : "s were"} emailed in the last ${r.data.gap_days} days and will be skipped.`;
       renderNudges();
