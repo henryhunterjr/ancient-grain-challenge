@@ -10,7 +10,9 @@ const pepper = env('AGC_RECOVERY_PEPPER') || env('SUPABASE_SERVICE_ROLE_KEY');
 const sql = postgres(env('SUPABASE_DB_URL'), { prepare: false, max: 2, idle_timeout: 20 });
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
-const hmacKey = crypto.subtle.importKey('raw', enc.encode(pepper), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+// A missing pepper leaves the function disabled (see `enabled`); the stand-in
+// only keeps the key import from failing at startup.
+const hmacKey = crypto.subtle.importKey('raw', enc.encode(pepper || 'disabled'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
 
 const log = (where: string, e: unknown) => console.error('entry-signin', where, e instanceof Error ? e.message.slice(0, 200) : 'error');
 
