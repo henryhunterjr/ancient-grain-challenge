@@ -389,11 +389,55 @@ Henry`;
         el("td", { class: "num", text: `${e.modules_verified}/7` }),
         el("td", { text: next ? next.title : "All done" }),
         el("td", { text: fmt(lastActivity(e)) }),
+        el("td", { class: "muted", text: mailed.get(e.id)?.last_sent_at ? fmt(mailed.get(e.id).last_sent_at) : "" }),
         el("td", {}, el("a", { class: "btn-link ghost-link", style: "padding:6px 12px;font-size:.85rem", href: compose(e.email, m.subject, m.body), target: "_blank", rel: "noopener", text: "Open nudge in Gmail" }), " ", copyBtn(emailText(e.email, m.subject, m.body), "Copy")));
     }));
     const grainWinners = winners.filter(w => !isMixer(w));
     const thisWeek = grainWinners.filter(w => w.status !== "forfeited" && weekOf(w) === weekOf(grainWinners[0] || { drawn_at: new Date() }));
     const blast = $("nudge-blast"); blast.value = blastText(weekOf(grainWinners[0] || { drawn_at: new Date() }), thisWeek);
+  }
+
+  // ---------- "your next lesson" emails (Supabase function progress-mail) ----------
+  const PM_URL = "https://pmhytaaajbhzyldmxmzb.supabase.co/functions/v1/progress-mail";
+  let mailed = new Map(), pmEligible = null, pmArmed = false;
+  async function pm(action, extra = {}) {
+    const res = await fetch(PM_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, key: ctx.key, ...extra }) });
+    let data = {}; try { data = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, data };
+  }
+  async function pmPreview() {
+    const btn = $("pm-send"), msg = $("pm-msg");
+    if (!btn) return;
+    try {
+      const r = await pm("preview");
+      if (!r.ok) throw new Error(r.data.error || r.status);
+      mailed = new Map(r.data.rows.map(x => [x.entrant_id, x]));
+      pmEligible = r.data.eligible; pmArmed = false;
+      btn.textContent = pmEligible ? `Email ${pmEligible} baker${pmEligible === 1 ? "" : "s"} their next lesson` : "Everyone is up to date";
+      btn.disabled = !pmEligible;
+      if (r.data.recently_emailed) msg.textContent = `${r.data.recently_emailed} baker${r.data.recently_emailed === 1 ? " was" : "s were"} emailed in the last ${r.data.gap_days} days and will be skipped.`;
+      renderNudges();
+    } catch (e) { btn.textContent = "Email sending unavailable"; btn.disabled = true; msg.textContent = "Couldn't reach the email sender. Refresh to try again."; }
+  }
+  function wireProgressMail() {
+    const test = $("pm-test"), send = $("pm-send"), msg = $("pm-msg");
+    if (!test) return;
+    test.onclick = async () => {
+      test.disabled = true; msg.textContent = "Sending your preview…";
+      const r = await pm("test");
+      msg.textContent = r.ok ? `Preview sent to ${r.data.to.join(" and ")}. The button in it works, so tap it to try the full flow.` : "The preview didn't send. Try again in a minute.";
+      test.disabled = false;
+    };
+    send.onclick = async () => {
+      if (!pmEligible) return;
+      if (!pmArmed) { pmArmed = true; send.textContent = `Tap again to send ${pmEligible} emails now`; setTimeout(() => { if (pmArmed) { pmArmed = false; pmPreview(); } }, 8000); return; }
+      pmArmed = false; send.disabled = true; msg.textContent = `Sending ${pmEligible} emails…`;
+      const r = await pm("send", { expect: pmEligible });
+      await pmPreview();
+      if (r.ok) msg.textContent = `Sent ${r.data.sent} emails. The Emailed column shows who got one.`;
+      else if (r.status === 409) msg.textContent = "The list changed since this page loaded. Check the new count and send again.";
+      else msg.textContent = "Sending failed, and nobody was marked as emailed. Try again in a few minutes.";
+    };
   }
 
   async function load() {
@@ -409,6 +453,7 @@ Henry`;
     $("win-week").onchange = renderWinners;
     $("ann-week").onchange = renderAnnounce;
     $("nudge-filter").onchange = renderNudges;
+    wireProgressMail(); pmPreview();
     $("partner-email").value = ls.get("agc_partner_email") || "";
     const partnerKey = () => $("partner-kind").value === "mixer" ? "agc_nutrimill_email" : "agc_partner_email";
     $("partner-kind").onchange = () => { $("partner-email").value = ls.get(partnerKey()) || ""; renderPartner(); };
