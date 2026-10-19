@@ -50,6 +50,8 @@ test('test send goes only to Henry and is marked preview', async () => {
   const d = deps([row(), row({ email: 'henryhunterjr@gmail.com', is_test: true, lessons_done: 0, next_key: 'm3', next_title: 'From Berries to Bread' })]);
   const b = await (await L.handle(post({ action: 'test', key: 'good' }), d)).json();
   assert.deepEqual(b.to, ['henryhunterjr@gmail.com']); assert.match(d.batches[0][0].subject, /^\[Preview\]/); assert.equal(d.logs.length, 0);
+  assert.equal(d.batches[0].length, 2); assert.match(d.batches[0][1].subject, /^\[Preview: finished version\] .*Bosch mixer drawing/);
+  assert.equal(d.batches[0][1].to, 'henryhunterjr@gmail.com'); assert.match(d.batches[0][1].text, /finished all seven/);
 });
 test('copy variants, no em dashes, next drawing date', () => {
   const link = L.ORIGIN + '/recover-entry#r=x&next=m3';

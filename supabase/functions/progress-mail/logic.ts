@@ -144,7 +144,10 @@ export async function handle(req: Request, d: Deps): Promise<Response> {
     if (body.action === 'test') {
       const targets = rows.filter(r => TEST_EMAILS.includes(r.email));
       if (!targets.length) return reply(404, { error: 'no_test_entry' });
-      const mails = (await build(targets, d)).map(m => ({ ...m, subject: '[Preview] ' + m.subject }));
+      // Also show the finished-baker version, using Henry's own entry and email.
+      const sample = targets.some(t => !t.next_key) ? [] : [{ ...targets[0], next_key: null, next_title: null, lessons_done: 7, quiz_passed: false, next_points: null }];
+      const built = await build([...targets, ...sample], d);
+      const mails = built.map((m, i) => ({ ...m, subject: (i >= targets.length ? '[Preview: finished version] ' : '[Preview] ') + m.subject }));
       await d.sendBatch(mails, 'test-' + await d.sha256(targets.map(t => t.entrant_id).join(',') + now));
       return reply(200, { sent: mails.length, to: targets.map(t => t.email) });
     }

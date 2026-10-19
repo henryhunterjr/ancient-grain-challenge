@@ -1,8 +1,8 @@
 -- Next-lesson emails now also go to bakers who finished all seven lessons, and every
 -- email shows the baker's mixer entries (1 for registering + 1 per verified point),
 -- what the next lesson adds, and which bonus activities are still open.
-drop function if exists agc_entry_recovery.progress_mail_list();
-create function agc_entry_recovery.progress_mail_list()
+-- Added as a new function (v2) so nothing existing is dropped; the sender reads v2.
+create or replace function agc_entry_recovery.progress_mail_list_v2()
  returns table(entrant_id uuid, email text, first_name text, is_test boolean, lessons_done int,
                next_key text, next_title text, quiz_passed boolean, last_sent_at timestamptz,
                entries int, next_points int, open_bonus jsonb)
@@ -28,4 +28,4 @@ as $function$
                                      and c.status in ('verified','pending'))), '[]'::jsonb)
   from e left join done d on d.entrant_id=e.id left join pts p on p.entrant_id=e.id join nxt n on n.id=e.id
 $function$;
-revoke all on function agc_entry_recovery.progress_mail_list() from public, anon, authenticated;
+revoke all on function agc_entry_recovery.progress_mail_list_v2() from public, anon, authenticated;
