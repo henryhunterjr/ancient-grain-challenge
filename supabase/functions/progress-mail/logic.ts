@@ -14,6 +14,7 @@ export interface Row {
 }
 // Henry's announcement graphic, already live on the challenge site.
 export const MIXER_IMAGE = ORIGIN + '/img/mixer-giveaway.jpg';
+export interface Winner { public_name: string; grain: string | null; drawn_on: string }
 export interface Mail { to: string; subject: string; text: string; html: string }
 export interface Deps {
   origins: string[]; enabled: boolean;
@@ -22,6 +23,7 @@ export interface Deps {
   sha256(v: string): Promise<string>;
   isAdmin(key: string): Promise<boolean>;
   list(): Promise<Row[]>;
+  winners(): Promise<Winner[]>;
   issue(entrant: string, tokenHash: string, days: number): Promise<void>;
   logged(entrant: string, lesson: string): Promise<void>;
   sendBatch(mails: Mail[], idempotency: string): Promise<void>;
@@ -44,7 +46,9 @@ export function eligible(rows: Row[], now: number): Row[] {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export function compose(r: Row, link: string, now: number): Omit<Mail, 'to'> {
+const day = (d: string) => new Date(String(d).slice(0, 10) + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+export function compose(r: Row, link: string, now: number, winners: Winner[] = []): Omit<Mail, 'to'> {
   const name = r.first_name || 'there';
   const draw = nextDraw(now);
   const finished = !r.next_key;
@@ -56,16 +60,23 @@ export function compose(r: Row, link: string, now: number): Omit<Mail, 'to'> {
     : r.lessons_done === 0 ? `${name}, you're in the Bosch mixer drawing. Your first lesson is ready`
     : r.next_points ? `${name}, your next lesson adds ${r.next_points} mixer entries`
     : `${name}, your next lesson is ${r.next_title}`;
-  const mixer = `Big news: I'm giving away a Bosch Universal Plus stand mixer from NutriMill. It's drawn live in the Crust & Crumb Academy on Tuesday, December 1. `
-    + `You're already in the drawing with ${entriesText}: one for registering, plus one for every point you've earned.`
-    + (!finished && r.next_points ? ` Finishing ${r.next_title} adds ${r.next_points} more.` : '');
-  const opener = finished
-    ? `You finished all seven lessons of the Ancient Grain Challenge. That puts you in the December 1 drawing for the 25 lb grand prize, and it's more than most bakers have done. Thank you.`
+  const thanks = `I'm Henry Hunter, founder of the Crust & Crumb Academy, and I want to thank you for being part of the Ancient Grain Challenge. `
+    + `The response to this series has gone way past what I expected, and I'm glad so many of you are getting real value out of it. That's the whole point: to help you become a better baker.`;
+  const setup = `You've shown up for this, so I wanted to give something back. `
+    + (r.lessons_done > 0 ? `You're already in the running for the grain.` : `Every lesson you finish puts you in the running for grain.`)
+    + ` Now I'm giving you something to mix it in.`;
+  const mixer = `Big news: I've decided to also give away a Bosch Universal Plus stand mixer from NutriMill. You're already entered. `
+    + (entries === 1 ? `You got one entry just for registering, and every point you earn adds another.`
+      : `You got one entry for registering, and every point you've earned counts as another, so right now you have ${entriesText}.`)
+    + (!finished && r.next_points ? ` Finishing ${r.next_title} adds ${r.next_points} more.` : '')
+    + ` I'll draw the winner live in the Academy on Tuesday, December 1.`;
+  const status = finished
+    ? `You finished all seven lessons, so you're also in the drawing for the 25 lb grand prize. Thank you for going the distance.`
     : r.quiz_passed
     ? `You passed the ${r.next_title} quiz, but the lesson isn't credited yet. The missing piece is your YouTube comment. Leave a comment on the video, then add the YouTube name you commented under. That's it.`
     : r.lessons_done === 0
-    ? `You're registered for the Ancient Grain Challenge, but you haven't finished a lesson yet. Let's fix that. Your first one is ${r.next_title}, and it takes about 15 minutes.`
-    : `You've finished ${r.lessons_done} of the 7 lessons. Good work. Next up is ${r.next_title}.`;
+    ? `You haven't finished a lesson yet. Your first one is ${r.next_title}, and it takes about 15 minutes.`
+    : `You've finished ${r.lessons_done} of the 7 lessons. Next up is ${r.next_title}.`;
   const bonusIntro = finished
     ? (bonus.length ? `Want more mixer entries? These bonus activities are still open for you, and every point is another entry:` : `You've done every bonus activity too, so you're all set. I'll see you December 1.`)
     : '';
@@ -73,42 +84,59 @@ export function compose(r: Row, link: string, now: number): Omit<Mail, 'to'> {
     'Save your score and the YouTube name you commented under. Your points show up right away.'];
   const prize = finished ? '' : (draw ? `Every finished lesson also puts you in the next grain drawing on ${draw} for a 5 lb bag from Grand Teton Ancient Grains. ` : '')
     + 'Finish all seven and you qualify for the 25 lb grand prize on December 1.';
+  const youtube = finished
+    ? `If you haven't already, hit like and subscribe on YouTube, and leave a comment on the videos.`
+    : `While you're on YouTube, hit like and subscribe, and leave a comment. Your comment is part of what earns you credit for each lesson.`;
+  const keepComing = `Keep your questions and comments coming. I read every one, whether it's on YouTube, inside the Academy, or in Baking Great Bread at Home.`;
   const button = finished ? 'See my entry' : r.quiz_passed ? `Finish ${r.next_title}` : `Start ${r.next_title}`;
   const where = finished ? 'to your entry' : 'straight to the lesson';
-  const fine = `This link is just for you and works for ${LINK_DAYS} days, on your phone or computer. After that, tap "Email me a sign-in link" on any lesson page.`;
+  const fine = `Your sign-in link is just for you and works for ${LINK_DAYS} days, on your phone or computer. After that, tap "Email me a sign-in link" on any lesson page.`;
+  const w = winners.filter(x => x && x.public_name);
+  const winnersHead = w.length ? `This week's grain winners (drawn ${day(w[0].drawn_on)})` : '';
+  const winnersTail = 'Congratulations, bakers. Your grain ships soon.';
   const text = [
-    `Hi ${name},`, mixer, opener,
+    `Hi ${name},`, thanks, setup, mixer, status,
     `This link signs you in and takes you ${where}. No entry code needed:\n${link}`,
     finished ? bonusIntro + (bonus.length ? '\n' + bonus.map(b => `- ${b.title} (${b.points} points)`).join('\n') : '')
       : `Here's how a lesson counts:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`,
-    prize, `See your progress anytime: ${ORIGIN}/#me`, fine, 'Henry Hunter\nCrust & Crumb Academy',
+    prize, youtube, keepComing, 'Henry Hunter\nCrust & Crumb Academy',
+    w.length ? `${winnersHead}:\n${w.map(x => `- ${x.public_name}${x.grain ? ', ' + x.grain : ''}`).join('\n')}\n${winnersTail}` : '',
+    `See your progress anytime: ${ORIGIN}/#me`, fine,
   ].filter(Boolean).join('\n\n');
   const p = (t: string, style = '') => `<p${style ? ` style="${style}"` : ''}>${esc(t)}</p>`;
   const bigNews = `<p><strong>Big news:</strong> ${esc(mixer.slice('Big news: '.length))}</p>`;
   const html = `<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;color:#2b2118;line-height:1.55;font-size:16px">
 <p>Hi ${esc(name)},</p>
+${p(thanks)}
+${p(setup)}
 <a href="${esc(link)}" style="display:block;margin:18px 0 8px"><img src="${MIXER_IMAGE}" width="560" alt="I'm giving away a Bosch Universal Plus stand mixer from NutriMill in the Ancient Grain Challenge" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:8px"></a>
 ${bigNews}
-${p(opener)}
+${p(status)}
 <p style="margin:26px 0"><a href="${esc(link)}" style="background:#8a5a2b;color:#fff;padding:13px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">${esc(button)}</a></p>
 ${p('One tap signs you in. No entry code needed.', 'font-size:14px;color:#6b5a4a;margin-top:-10px')}
 ${finished
   ? p(bonusIntro) + (bonus.length ? `<ul style="padding-left:22px">${bonus.map(b => `<li>${esc(b.title)} <span style="color:#6b5a4a">(${b.points} points)</span></li>`).join('')}</ul>` : '')
   : `<p><strong>Here's how a lesson counts:</strong></p>\n<ol style="padding-left:22px">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`}
 ${prize ? p(prize) : ''}
-<p><a href="${ORIGIN}/#me" style="color:#8a5a2b">See your progress anytime</a></p>
+${p(youtube)}
+${p(keepComing)}
+<p>Henry Hunter<br>Crust &amp; Crumb Academy</p>
+${w.length ? `<div style="border-top:1px solid #e4d8c8;margin-top:22px;padding-top:14px"><p style="margin:0 0 6px"><strong>${esc(winnersHead)}</strong></p>
+<ul style="padding-left:22px;margin:0 0 8px">${w.map(x => `<li>${esc(x.public_name)}${x.grain ? `, ${esc(x.grain)}` : ''}</li>`).join('')}</ul>${p(winnersTail, 'margin:0')}</div>` : ''}
+<p style="margin-top:22px"><a href="${ORIGIN}/#me" style="color:#8a5a2b">See your progress anytime</a></p>
 ${p(fine, 'font-size:13px;color:#6b5a4a')}
-<p>Henry Hunter<br>Crust &amp; Crumb Academy</p></div>`;
+</div>`;
   return { subject, text, html };
 }
 
 async function build(rows: Row[], d: Deps): Promise<Mail[]> {
   const out: Mail[] = [];
+  const winners = await d.winners().catch(e => { d.log?.('winners', e); return [] as Winner[]; });
   for (const r of rows) {
     const credential = d.random();
     await d.issue(r.entrant_id, await d.sha256(credential), LINK_DAYS);
     const link = `${ORIGIN}/recover-entry#r=${credential}${r.next_key ? '&next=' + r.next_key : ''}&auto=1`;
-    out.push({ to: r.email, ...compose(r, link, d.now()) });
+    out.push({ to: r.email, ...compose(r, link, d.now(), winners) });
   }
   return out;
 }
