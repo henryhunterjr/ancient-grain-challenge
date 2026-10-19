@@ -91,8 +91,11 @@
     box.append(el('p',{text:`Signed in as ${progress.first_name}. Only save if this is your entry.`}), save, switchEntry, msg);
   }
   function authLinks() {
-    box.append(el('p',{text:'Register free or sign in with your private entry code. Your pending score stays here; return after registration to confirm your entry and save.'}),
-      el('a',{class:'btn-link',href:'/?return=record-score#me',text:'Register or sign in'}),
+    box.append(el('h3',{text:'Already registered? Get a sign-in link'}),
+      el('p',{text:'Enter your email and we will send a one-tap sign-in link. Your score comes with it, even if the email opens on another phone or browser.'}),
+      AGC.emailSignIn(()=>H.read()),
+      el('p',{class:'muted',text:'New to the challenge? Register free first. Your pending score stays here; come back to this page to save it.'}),
+      el('a',{class:'btn-link ghost-link',href:'/?return=record-score#me',text:'Register, or sign in with your entry code'}),
       el('button',{type:'button',class:'ghost',onclick:render},'I have signed in; check again'));
   }
   function saved(r,token,gen) {

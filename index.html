@@ -421,7 +421,7 @@
     const rec = el("form", { novalidate: true },
       el("p", { class: "muted", text: "Paste the entry code you saved when registering. Keep this code private: it gives access to your entry." }),
       el("label", { for: "x-code" }, "Your entry code — required", el("input", { id: "x-code", required: true, autocomplete: "off", spellcheck: false })),
-      el("p", { class: "muted" }, "Lost your code? If you're still signed in on another device, save it from Your entry there. Otherwise, contact ", el("a", { href: "mailto:henrysbreadkitchen@gmail.com", text: "henrysbreadkitchen@gmail.com" }), " for help. Your email and name alone cannot restore access."),
+      el("p", { class: "muted" }, "No code handy? Use the email sign-in link below. Still stuck? Contact ", el("a", { href: "mailto:henrysbreadkitchen@gmail.com", text: "henrysbreadkitchen@gmail.com" }), "."),
       el("div", {}, el("button", { type: "submit", class: "ghost" }, "Find my entry")), rmsg);
     rec.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -438,7 +438,13 @@
 
     meBody.replaceChildren(
       el("div", { class: "card" }, f),
-      el("details", {}, el("summary", { text: "Already registered?" }), el("div", {}, rec)));
+      el("details", { id: "already-registered" }, el("summary", { text: "Already registered? Sign in" }),
+        el("div", { class: "stack" },
+          el("h3", { text: "Email me a sign-in link" }),
+          el("p", { class: "muted", text: "Fastest way back in. We will email a link that signs you in with one tap." }),
+          AGC.emailSignIn(() => (typeof QuizHandoff !== "undefined" ? QuizHandoff.read() : null)),
+          el("h3", { text: "Or use your entry code" }), rec)));
+    if (location.hash === "#signin") document.getElementById("already-registered").open = true;
   }
 
 

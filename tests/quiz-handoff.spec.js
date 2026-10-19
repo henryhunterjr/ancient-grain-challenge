@@ -29,7 +29,7 @@ test('pending carries through closed page, free signup and explicit authenticate
   expect(Object.keys(pending).sort()).toEqual(['created','expires','id','quiz','score','task','total'].sort());
   expect(pending.expires-pending.created).toBe(7*86400000);
   await page.close(); page=await context.newPage(); await fixture(page);
-  await page.goto('/record-score'); await page.getByRole('link',{name:'Register or sign in'}).click();
+  await page.goto('/record-score'); await page.getByRole('link',{name:'Register, or sign in with your entry code'}).click();
   await expect(page.getByRole('link',{name:'return to record your score'})).toBeVisible();
   await page.locator('#r-name').fill('Synthetic Baker'); await page.locator('#r-email').fill('synthetic@example.invalid');
   await page.locator('#r-skool').selectOption('Other'); await page.locator('#r-country').selectOption('United States');
@@ -46,8 +46,8 @@ test('pending carries through closed page, free signup and explicit authenticate
   await expect(page.getByText('Comment details saved. Lesson complete;', {exact:false})).toBeVisible();
 });
 test('existing entry code sign-in preserves pending and never puts code in URL',async({page})=>{
-  await fixture(page); await page.goto(link()); await page.getByRole('link',{name:'Register or sign in'}).click();
-  await page.getByText('Already registered?',{exact:true}).click(); await page.locator('#x-code').fill(A);
+  await fixture(page); await page.goto(link()); await page.getByRole('link',{name:'Register, or sign in with your entry code'}).click();
+  await page.getByText('Already registered? Sign in',{exact:true}).click(); await page.locator('#x-code').fill(A);
   await page.getByRole('button',{name:'Find my entry'}).click(); await expect(page.getByText('Welcome back, Alice.')).toBeVisible();
   await page.getByRole('link',{name:'return to record your score'}).click(); expect(page.url()).not.toContain(A);
   await expect(page.getByRole('button',{name:'Save score for Alice'})).toBeVisible();
@@ -151,7 +151,7 @@ test('expiry, malformed params and forged pass/time',async({page})=>{
 });
 test('failed/interrupted signup keeps result across reload and offers retry',async({page})=>{
   await fixture(page,null,async(name,body,route)=>{if(name==='register'){await route.abort();return 'handled';}});
-  await page.goto(link());await page.getByRole('link',{name:'Register or sign in'}).click();
+  await page.goto(link());await page.getByRole('link',{name:'Register, or sign in with your entry code'}).click();
   await page.locator('#r-name').fill('Synthetic Baker');await page.locator('#r-email').fill('synthetic@example.invalid');
   await page.locator('#r-skool').selectOption('Other');await page.locator('#r-country').selectOption('United States');
   await page.locator('#r-grain').selectOption('Rye');await page.locator('#r-news').check();await page.locator('#r-rules').check();

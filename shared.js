@@ -93,5 +93,39 @@ const AGC = (() => {
       el('p', { class: 'muted', text: 'Copy or write down this code now. Use it to return on another phone or computer. Anyone with this code can access your entry; keep it private.' }),
       ...(!store.durable('agc_token') ? [el('p', { class: 'msg', role: 'status', text: 'This browser could not save your sign-in. Save your code before leaving; this page can keep you signed in only while it remains open.' })] : []));
   }
-  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription, codePanel };
+  // Email sign-in link. The server answers the same way for every address, so
+  // this form never reveals who registered. A pending quiz score rides along in
+  // the link so it still saves when the email opens in a different browser.
+  const SIGNIN_URL = "https://pmhytaaajbhzyldmxmzb.supabase.co/functions/v1/entry-signin";
+  async function signin(body) {
+    const res = await fetch(SIGNIN_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), referrerPolicy: "no-referrer" });
+    let data = null; try { data = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, data };
+  }
+  function emailSignIn(getQuiz, next) {
+    const input = el("input", { id: "signin-email", type: "email", required: true, autocomplete: "email", inputmode: "email", maxlength: "254", placeholder: "you@example.com" });
+    const button = el("button", { type: "submit" }, "Email me a sign-in link");
+    const msg = el("p", { class: "msg", role: "status", "aria-live": "polite" });
+    const form = el("form", { class: "stack signin-email", novalidate: true },
+      el("label", { for: "signin-email" }, "The email you registered with", input), el("div", {}, button), msg);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault(); if (button.disabled) return;
+      const email = input.value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.className = "msg err"; msg.textContent = "Enter the email address you registered with."; return; }
+      button.disabled = true; msg.className = "msg"; msg.textContent = "Sending…";
+      const pending = typeof getQuiz === "function" ? getQuiz() : null;
+      try {
+        const r = await signin({ action: "request", email, ...(next ? { next } : {}), ...(pending ? { quiz: { quiz: pending.quiz, score: pending.score, total: pending.total } } : {}) });
+        if (!r.ok) throw new Error(r.data?.error || "status");
+        msg.className = "msg ok"; msg.textContent = r.data?.message || "Check your inbox for your sign-in link.";
+        button.textContent = "Send another link";
+      } catch (err) {
+        msg.className = "msg err";
+        msg.textContent = err.message === "email" ? "Enter the email address you registered with." : "We couldn't send a link right now. Try again in a minute, or sign in with your entry code.";
+      }
+      setTimeout(() => { button.disabled = false; }, 4000);
+    });
+    return form;
+  }
+  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription, codePanel, signin, emailSignIn };
 })();
