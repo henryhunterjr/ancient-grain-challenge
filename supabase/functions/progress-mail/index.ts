@@ -18,6 +18,7 @@ Deno.serve(req => handle(req, {
   sha256: async v => hex(await crypto.subtle.digest('SHA-256', enc.encode(v))),
   isAdmin: async key => (await sql`select public._is_admin(${key}) as ok`)[0]?.ok === true,
   list: async () => (await sql`select * from agc_entry_recovery.progress_mail_list_v2()`) as any,
+  winners: async () => (await sql`select public_name, grain, drawn_on::text as drawn_on from agc_entry_recovery.latest_grain_winners()`) as any,
   issue: async (entrant, hash, days) => { await sql`select agc_entry_recovery.progress_link_issue(${entrant}::uuid, ${hash}, ${days})`; },
   logged: async (entrant, lesson) => { await sql`select agc_entry_recovery.progress_mail_logged(${entrant}::uuid, ${lesson})`; },
   log,
