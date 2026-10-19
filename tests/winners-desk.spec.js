@@ -35,12 +35,22 @@ const resetWinner = () => { winner = {
   tracking: '', notes: '', claim_expires_at: null, notified_at: null, reminded_at: null, address_received_at: null, sent_to_partner_at: null, shipped_at: null, announced_at: null,
 }; };
 const calls = [];
+const pmState = { sent: false };
 
 async function mock(page) {
-  calls.length = 0; resetWinner();
+  calls.length = 0; resetWinner(); pmState.sent = false;
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.hostname === '127.0.0.1') return route.continue();
+    if (url.pathname.endsWith('/functions/v1/progress-mail')) {
+      const body = route.request().postDataJSON() || {}; calls.push({ name: 'progress-mail', body });
+      if (body.key !== 'local-only') return route.fulfill({ status: 403, json: { error: 'denied' } });
+      if (body.action === 'preview') return route.fulfill({ json: pmState.sent
+        ? { eligible: 0, recently_emailed: 3, gap_days: 3, rows: ['e1','e2','e3'].map(id => ({ entrant_id: id, last_sent_at: '2026-10-19T17:05:00Z', quiz_passed: false })) }
+        : { eligible: 3, recently_emailed: 0, gap_days: 3, rows: ['e1','e2','e3'].map(id => ({ entrant_id: id, last_sent_at: null, quiz_passed: false })) } });
+      if (body.action === 'test') return route.fulfill({ json: { sent: 1, to: ['henrysbreadkitchen@gmail.com'] } });
+      if (body.action === 'send') { if (body.expect !== 3) return route.fulfill({ status: 409, json: { error: 'changed' } }); pmState.sent = true; return route.fulfill({ json: { sent: 3 } }); }
+    }
     if (!url.pathname.includes('/rpc/')) return route.abort();
     const name = url.pathname.split('/rpc/')[1];
     const body = route.request().postDataJSON() || {};
@@ -298,4 +308,24 @@ test('public mixer announcement and rules agree at mobile and desktop widths', a
     await page.screenshot({ path: `test-output/mixer-public-${width}.png`, fullPage: true });
     await page.locator('header.hero').screenshot({ path: `test-output/mixer-hero-${width}.png` });
   }
+});
+
+test('next-lesson emails: preview, two-tap send, emailed column', async ({ page }) => {
+  await mock(page);
+  await page.goto('/admin');
+  await page.fill('#key', 'local-only');
+  await page.click('#login button[type=submit]');
+  const send = page.locator('#pm-send');
+  await expect(send).toHaveText('Email 3 bakers their next lesson');
+  await page.click('#pm-test');
+  await expect(page.locator('#pm-msg')).toContainText('Preview sent to henrysbreadkitchen@gmail.com');
+  await send.click();
+  await expect(send).toHaveText('Tap again to send 3 emails now');
+  expect(calls.filter(c => c.name === 'progress-mail' && c.body.action === 'send').length).toBe(0);
+  await send.click();
+  await expect(page.locator('#pm-msg')).toContainText('Sent 3 emails');
+  await expect(send).toHaveText('Everyone is up to date');
+  await expect(send).toBeDisabled();
+  expect(calls.find(c => c.body?.action === 'send').body).toEqual({ action: 'send', key: 'local-only', expect: 3 });
+  await expect(page.locator('#nudge-rows tr').first().locator('td').nth(4)).not.toHaveText('');
 });

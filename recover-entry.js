@@ -6,6 +6,9 @@
   // A quiz score carried in the link is public quiz data only; it is re-validated here.
   const carried = params.has('quiz') ? H.validate(one('quiz'), one('score'), one('total')) : null;
   const next = /^m[1-9]$/.test(one('next') || '') ? one('next') : null;
+  // Personal lesson links from Henry's progress emails are reusable for 7 days,
+  // so they sign in without a second tap. One-time links still wait for a tap.
+  const auto = one('auto') === '1' && !!next && !params.has('quiz');
   // Strip the link from the address bar and history before anything else runs.
   history.replaceState(null, '', location.pathname);
 
@@ -34,7 +37,9 @@
     credential = null;
     const d = r.data || {};
     if (!r.ok || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.token || '') || typeof d.first_name !== 'string') {
-      askAgain('This sign-in link has expired or was already used. Links work once and last 60 minutes. Request a new one below; your entry and points are safe.'); return;
+      // Already signed in on this browser from an earlier tap: just keep moving.
+      if (store.get('agc_token') && next && !carried) { location.replace('/lesson?m=' + next); return; }
+      askAgain('This sign-in link has expired or was already used. Request a new one below; your entry and points are safe.'); return;
     }
     store.set('agc_token', d.token);
     if (carried) {
@@ -46,6 +51,7 @@
       status(dest === '/record-score' ? 'You are signed in. Taking you to save your quiz score…' : 'You are signed in. Taking you back…'),
       el('details', {}, el('summary', { text: 'Show my private entry code' }), AGC.codePanel(d.token)),
       el('a', { class: 'btn-link', href: dest, text: dest === '/record-score' ? 'Save my quiz score' : 'Continue' }));
-    if (store.durable('agc_token')) setTimeout(() => location.assign(dest), 1800);
+    if (store.durable('agc_token')) setTimeout(() => location.assign(dest), auto ? 600 : 1800);
   });
+  if (auto) button.click();
 })();

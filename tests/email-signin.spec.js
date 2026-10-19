@@ -89,3 +89,25 @@ test('incomplete link asks for a new one',async({page})=>{
   await page.goto('/recover-entry#r=short');
   await expect(page.getByText('This sign-in link is incomplete',{exact:false})).toBeVisible();
 });
+
+test('personal lesson link signs in without a second tap and opens the lesson',async({page})=>{
+  const calls=await fixture(page,(route,body)=>body.action==='redeem'?route.fulfill({json:{token:A,first_name:'Alice'}}):generic(route));
+  await page.goto(`/recover-entry#r=${CRED}&next=m7&auto=1`);
+  await page.waitForURL('**/lesson?m=m7');
+  expect(await page.evaluate(()=>localStorage.getItem('agc_token'))).toBe(A);
+  expect(calls.filter(c=>c.name==='signin').length).toBe(1);
+});
+
+test('tapping a personal link again on a signed-in browser just opens the lesson',async({page})=>{
+  await page.addInitScript(t=>localStorage.setItem('agc_token',t),A);
+  await fixture(page,(route,body)=>body.action==='redeem'?route.fulfill({status:400,json:{error:'link'}}):generic(route));
+  await page.goto(`/recover-entry#r=${CRED}&next=m7&auto=1`);
+  await page.waitForURL('**/lesson?m=m7');
+});
+
+test('one-time links still wait for a tap',async({page})=>{
+  const calls=await fixture(page,generic);
+  await page.goto(`/recover-entry#r=${CRED}&next=m7`);
+  await expect(page.getByRole('button',{name:'Sign me in'})).toBeVisible();
+  expect(calls.length).toBe(0);
+});
