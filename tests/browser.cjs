@@ -45,7 +45,7 @@ const server=http.createServer((req,res)=>{
    const dims=await page.locator('#'+id).evaluate(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height,labelHeight:el.closest('label').getBoundingClientRect().height}));
    assert.ok(dims.width>=22&&dims.height>=22&&dims.labelHeight>=44,JSON.stringify(dims));
   }
-  await page.getByText('Already registered?',{exact:true}).click();
+  await page.getByText('Already registered? Sign in',{exact:true}).click();
   if(process.env.AGC_EXPECT_SECURE_RECOVERY==='1') {
    assert.equal(await page.locator('#x-email,#x-skool').count(),0);
    await page.getByRole('button',{name:'Find my entry'}).click();

@@ -78,7 +78,9 @@
       complete = el("div", { class: "card stack" },
         el("h3", { text: "Track your progress" }),
         el("p", { class: "muted", text: "You're watching as a guest. Register on the challenge page to mark lessons done and enter the drawings." }),
-        el("div", {}, el("a", { class: "btn-link", href: "/#me", text: "Register, it's free" })));
+        el("div", {}, el("a", { class: "btn-link", href: "/#me", text: "Register, it's free" })),
+        el("details", {}, el("summary", { text: "Already registered? Get a sign-in link by email" }),
+          el("div", { class: "stack" }, AGC.emailSignIn(() => null, key))));
     } else if (done) {
       complete = el("div", { class: "card stack" },
         el("div", { class: "status-line" }, el("span", { class: "pill verified", text: "Done" }),
