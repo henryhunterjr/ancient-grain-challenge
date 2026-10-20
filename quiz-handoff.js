@@ -3,7 +3,7 @@
 const QuizHandoff = (() => {
   const KEY = 'agc_pending_quiz_v1', TTL = 7 * 24 * 60 * 60 * 1000;
   let memory = null, durable = true;
-  const quizzes = Object.fromEntries(Object.entries(AGC.LESSONS).map(([task,lesson]) => [lesson.quiz.split('/').pop(),task]));
+  const quizzes = Object.fromEntries(Object.entries(AGC.LESSONS).map(([task,lesson]) => [lesson.quizId,task]));
   const titles = { m3: 'From Berries to Bread', m7: 'Rye Redefined', m1: 'Why Ancient Wheat Dough Feels Different',
     m2: 'The Kneading Fallacy', m4: 'Which Wheat Berry Should You Use?', m6: 'Mastering Einkorn', m5: 'Ancient Grain Sourdough Starter' };
   function validate(quiz, score, total) {

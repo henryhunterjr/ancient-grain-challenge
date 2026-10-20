@@ -33,15 +33,15 @@ const AGC = (() => {
     for (const kid of kids.flat()) if (kid != null) n.append(kid.nodeType ? kid : document.createTextNode(kid));
     return n;
   }
-  // Lessons: YouTube IDs and muse.ai quiz links, keyed by task key. Order comes from the tasks table.
+  // Lessons: original YouTube IDs, stable quiz IDs, and public quiz routes, keyed by task key. Order comes from the tasks table.
   const LESSONS = {
-    m3: { videos: ["smiOhsBluSY"], quiz: "https://muse.ai/s/from-berries-to-bread-module-one-kj65x0xbgxctgu" },
-    m7: { videos: ["Lyjw-E4a-Qk"], quiz: "https://muse.ai/s/rye-redefined-quiz-lxm6dxqxlxxkxoxkn" },
-    m1: { videos: ["QoGpW6hXxz8"], quiz: "https://muse.ai/s/why-ancient-wheat-dough-feels-xht6epxj9xxxrrn" },
-    m2: { videos: ["1GGZgB2TMgY"], quiz: "https://muse.ai/s/the-kneading-fallacy-xox06exr433x0xoxm" },
-    m4: { videos: ["xWSZYfOUkrw"], quiz: "https://muse.ai/s/which-wheat-berry-xyr6exixztixzgi" },
-    m6: { videos: ["30SLfbm1fZk"], quiz: "https://muse.ai/s/mastering-einkorn-gs6exki0xyxbfxe" },
-    m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quiz: "https://muse.ai/s/ancient-grain-sourdough-starter-jv6exlxjhxj67f" }
+    m3: { videos: ["smiOhsBluSY"], quizId: "from-berries-to-bread-module-one-kj65x0xbgxctgu", quiz: "/quiz?quiz=from-berries-to-bread-module-one-kj65x0xbgxctgu" },
+    m7: { videos: ["Lyjw-E4a-Qk"], quizId: "rye-redefined-quiz-lxm6dxqxlxxkxoxkn", quiz: "/quiz?quiz=rye-redefined-quiz-lxm6dxqxlxxkxoxkn" },
+    m1: { videos: ["QoGpW6hXxz8"], quizId: "why-ancient-wheat-dough-feels-xht6epxj9xxxrrn", quiz: "/quiz?quiz=why-ancient-wheat-dough-feels-xht6epxj9xxxrrn" },
+    m2: { videos: ["1GGZgB2TMgY"], quizId: "the-kneading-fallacy-xox06exr433x0xoxm", quiz: "/quiz?quiz=the-kneading-fallacy-xox06exr433x0xoxm" },
+    m4: { videos: ["xWSZYfOUkrw"], quizId: "which-wheat-berry-xyr6exixztixzgi", quiz: "/quiz?quiz=which-wheat-berry-xyr6exixztixzgi" },
+    m6: { videos: ["30SLfbm1fZk"], quizId: "mastering-einkorn-gs6exki0xyxbfxe", quiz: "/quiz?quiz=mastering-einkorn-gs6exki0xyxbfxe" },
+    m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quizId: "ancient-grain-sourdough-starter-jv6exlxjhxj67f", quiz: "/quiz?quiz=ancient-grain-sourdough-starter-jv6exlxjhxj67f" }
   };
   function videoBox(id, i) {
     const box = el("div", { class: "video" });

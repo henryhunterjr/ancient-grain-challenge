@@ -138,7 +138,7 @@
       ...(L.videos.length ? L.videos.map((id, n) => videoBox(id, n)) : [el("p", { class: "muted", text: "The video for this lesson is on its way." })]),
       el("div", { class: "quiz-row" },
         L.quiz
-          ? el("a", { class: "btn-link", href: L.quiz, target: "_blank", rel: "noopener", text: "Take the quiz (pass at 70%)" })
+          ? el("a", { class: "btn-link", href: L.quiz, text: "Take the quiz (pass at 70%)" })
           : el("span", { class: "muted", text: "Quiz coming soon. Complete this lesson once the quiz is available." })),
       complete,
       nav("bottom"));
