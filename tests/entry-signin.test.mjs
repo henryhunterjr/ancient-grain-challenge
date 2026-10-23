@@ -2,7 +2,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-const { handle, GENERIC, ORIGIN, quizFragment } = await import('../supabase/functions/entry-signin/logic.ts');
+const { handle, GENERIC, ORIGIN, quizFragment, emailContent } = await import('../supabase/functions/entry-signin/logic.ts');
+
+test('sign-in email preserves the recovery link and mentions the Bosch giveaway',()=>{
+ const m=emailContent(ORIGIN+'/recover-entry#r=synthetic&quiz=public');
+ assert.match(m.text,/Bosch Universal Plus stand mixer from NutriMill/);
+ assert.match(m.html,/two optional bonus quizzes can earn 20 points each, once/);
+ assert.match(m.html,/r=synthetic&amp;quiz=public/);
+ assert.match(m.text,/expires in 60 minutes/);
+});
 
 const TOKEN = '11111111-2222-4333-8444-555555555555';
 function deps(over = {}) {

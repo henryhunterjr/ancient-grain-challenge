@@ -4,11 +4,12 @@ http.createServer((req,res)=>{
   const url = new URL(req.url,'http://localhost');
   let pathname = decodeURIComponent(url.pathname);
   if (pathname==='/') pathname='/index.html';
+  else if (pathname.endsWith('/')) pathname+='index.html';
   else if (!path.extname(pathname)) pathname+='.html';
   const file=path.resolve(root,'.'+pathname);
   if (!file.startsWith(root+path.sep)) { res.writeHead(403).end(); return; }
   fs.readFile(file,(err,data)=>{
     if (err) { res.writeHead(404).end(); return; }
-    res.writeHead(200,{'Content-Type':({'.html':'text/html','.js':'text/javascript','.css':'text/css','.jpg':'image/jpeg','.svg':'image/svg+xml'})[path.extname(file)]||'application/octet-stream'}).end(data);
+    res.writeHead(200,{'Content-Type':({'.html':'text/html','.js':'text/javascript','.css':'text/css','.jpg':'image/jpeg','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.mp4':'video/mp4'})[path.extname(file)]||'application/octet-stream'}).end(data);
   });
 }).listen(Number(process.env.AGC_PREVIEW_PORT || 4178),'127.0.0.1',()=>console.log('Local preview ready'));

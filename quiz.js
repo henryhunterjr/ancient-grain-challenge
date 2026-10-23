@@ -21,9 +21,10 @@
   function heading(text) { return el('h1',{class:'quiz-heading',tabindex:'-1',text}); }
   function focusHeading() { body.querySelector('h1,legend')?.focus(); }
   function intro() {
-    body.replaceChildren(el('p',{class:'eyebrow',text:bonus?'Optional bonus · no challenge points':'Ancient Grain Challenge · lesson quiz'}),heading(quiz.title),
+    body.replaceChildren(el('p',{class:'eyebrow',text:bonus?'Optional bonus · 20 points once':'Ancient Grain Challenge · lesson quiz'}),heading(quiz.title),
       el('p',{text:'10 questions. Score 70% or better to pass. No timer. You can retake the quiz as often as you like.'}),
-      el('p',{class:'muted',text:bonus?'This bonus quiz does not count toward the seven challenge lessons or giveaway points.':'Take the quiz free, without signing in. Afterward, save your result to your challenge entry and add your YouTube comment details to finish the lesson.'}),
+      el('p',{class:'muted',text:bonus?'Watch the lesson, pass this quiz, save your score, and confirm your YouTube comment to earn 20 bonus points. Each point adds a Bosch Universal Plus mixer entry. This bonus does not replace any of the seven required lessons.':'Take the quiz free, without signing in. Afterward, save your result to your challenge entry and add your YouTube comment details to finish the lesson.'}),
+      ...(bonus ? [el('a',{href:'https://www.youtube.com/watch?v=_2hW2qzV3nc',target:'_blank',rel:'noopener',text:'Watch and comment on the lesson on YouTube'})] : []),
       el('div',{class:'quiz-actions'},el('button',{type:'button',onclick:start,text:'Start quiz'}),el('a',{href:lessonURL,text:bonus?'Back to the bonus lesson':'Watch the lesson'})));
   }
   function start() { round=shuffle(quiz.questions).slice(0,10); answers=[]; index=0; correct=0; question(); }
@@ -59,7 +60,7 @@
   function finish() {
     const score=correct/round.length*100, passed=score>=70;
     const actions=el('div',{class:'quiz-actions'});
-    if(!bonus) {
+    {
       // Use a normal same-origin link. No popup permission or third-party login.
       const params=new URLSearchParams({quiz:id,score:String(score),total:String(round.length)});
       actions.append(el('a',{class:'btn-link',href:'/record-score?'+params,text:'Record my challenge score'}));
@@ -70,7 +71,7 @@
       ...(!a.right?[el('p',{text:'Correct answer: '+a.question.answer})]:[]),el('p',{class:'muted',text:a.question.note})));
     body.replaceChildren(heading(passed?'You passed.':'Keep learning. Try again.'),el('p',{class:'quiz-score',text:score+'%'}),
       el('p',{text:`${correct} of ${round.length} correct · 70% to pass`}),
-      el('p',{class:'muted',text:bonus?'This bonus result earns no challenge points.':
+      el('p',{class:'muted',text:bonus?'Save your score and confirm your YouTube comment to earn 20 bonus points once. Already registered? Sign in to your existing entry after choosing “Record my challenge score.”':
         'Your result is ready. Use “Record my challenge score” to save it to your entry. Lesson completion also requires your YouTube comment details before it earns points. Retakes cannot lower your saved best score.'}),
       actions,el('details',{},el('summary',{text:'Review your answers and teaching notes'}),review));
     focusHeading();

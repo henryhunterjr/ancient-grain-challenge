@@ -70,11 +70,7 @@
   "rewrites": [
     {
       "source": "/quizzes/why-your-fresh-milled-sourdough-is-dense/",
-      "destination": "https://dense-sourdough-quiz.vercel.app/"
-    },
-    {
-      "source": "/quizzes/why-your-fresh-milled-sourdough-is-dense/:path*",
-      "destination": "https://dense-sourdough-quiz.vercel.app/:path*"
+      "destination": "/quizzes/why-your-fresh-milled-sourdough-is-dense/index.html"
     }
   ],
   "redirects": [

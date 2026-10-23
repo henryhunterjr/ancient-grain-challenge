@@ -95,7 +95,7 @@
         <li>Leave a comment on that lesson's YouTube video. Share what you learned or ask a baking question.</li>
         <li>Record your quiz score and YouTube name on the lesson page, then check that your completion appears in My entry.</li>
       </ol>
-      <p class="muted">Repeated comments don't earn extra points. The optional sprouted grains bonus quiz earns no challenge points.</p>
+      <p class="muted">Repeated comments don't earn extra points. The two optional bonus quizzes earn 20 points each, once, after you save a passing score and confirm your YouTube comment.</p>
       <div><a class="btn-link ghost-link" href="#me">Check my points &amp; progress</a></div>
     </div>
     <div class="card stack" aria-labelledby="channel-invitation-h">
@@ -106,10 +106,10 @@
     </div>
     <div id="syllabus" class="syllabus"><p class="muted" style="padding:16px 0">Loading the lessons…</p></div>
     <div class="card stack" id="dense-sourdough-quiz" aria-labelledby="dense-sourdough-quiz-h">
-      <span class="pill">Additional module quiz</span>
+      <span class="pill">Optional bonus · 20 points</span>
       <h3 id="dense-sourdough-quiz-h">Why Your Fresh-Milled Sourdough Is Dense</h3>
       <p>From Berries to Bread · Ancient Grain Series. 10 questions drawn at random from a 20-question bank. 80% to pass.</p>
-      <p class="muted">This quiz is for additional learning. It does not record a giveaway score and does not count toward the seven challenge lessons or challenge points.</p>
+      <p class="muted">Earn 20 bonus points once. Watch, pass at 80%, save your score, and confirm your YouTube comment. Every point adds one entry in the Bosch Universal Plus stand mixer drawing. This bonus does not replace any of the seven required lessons.</p>
       <div><a class="btn-link" href="/quizzes/why-your-fresh-milled-sourdough-is-dense/">Take the quiz</a></div>
     </div>
   </div>
@@ -119,10 +119,10 @@
   <div class="wrap stack">
     <h2 id="bonus-learning-h">Bonus Learning</h2>
     <div class="card stack">
-      <span class="pill">Optional extra learning</span>
+      <span class="pill">Optional bonus · 20 points</span>
       <h3>Waking Up the Berry Quiz</h3>
       <p>Learn to sprout grain for bread. Wake the berry up with Henry, then test the full process from soaking and rinsing through drying, milling, and baking. 10 questions drawn from a 15-question lesson bank. 70% to pass.</p>
-      <p class="muted">This bonus lesson earns no challenge points. It does not count toward the seven challenge lessons, Friday drawings, or the December 1 grand prize.</p>
+      <p class="muted">Earn 20 bonus points once. Watch, pass at 70%, save your score, and confirm your YouTube comment. Every point adds one entry in the Bosch Universal Plus stand mixer drawing. This bonus does not replace any of the seven required lessons.</p>
       <div><a class="btn-link" href="/quiz?quiz=waking-up-the-berry-quiz-wxp6iak2yanw">Take the bonus quiz</a></div>
     </div>
   </div>
@@ -131,7 +131,7 @@
 <section aria-labelledby="tasks-h">
   <div class="wrap stack">
     <h2 id="tasks-h">Bonus points</h2>
-    <p class="muted">Every point is one more entry in the drawings. When you check something off here, it shows as <span class="pill pending">pending</span> until we confirm it, usually within a couple of days. Need a recipe? The <a href="https://recipepantry.app/fresh-milled" target="_blank" rel="noopener">Recipe Pantry fresh-milled and ancient grain library</a> has you covered.</p>
+    <p class="muted">Every point is one more entry in the drawings. The two bonus quizzes earn 20 points each, once you save a passing score and confirm your YouTube comment. Other activities show as <span class="pill pending">pending</span> until we confirm them, usually within a couple of days. Need a recipe? The <a href="https://recipepantry.app/fresh-milled" target="_blank" rel="noopener">Recipe Pantry fresh-milled and ancient grain library</a> has you covered.</p>
     <div id="tasks" class="tasks"><p class="muted" style="padding:16px 0">Loading the list…</p></div>
   </div>
 </section>
@@ -493,7 +493,9 @@
       const proofId = "p-" + t.key;
       const msg = el("span", { class: "msg", role: "status" });
       let actions;
-      if (!progress) {
+      if (AGC.BONUS_QUIZZES[t.key] && c?.status !== 'verified') {
+        actions = el('div', { class: 'task-actions' }, el('a', {class:'btn-link',href:AGC.BONUS_QUIZZES[t.key].quiz,text:'Take the quiz and record your score'}));
+      } else if (!progress) {
         actions = el("div", { class: "task-actions" }, el("span", { class: "muted", text: "Register to check this off." }));
       } else if (c && c.status === "verified") {
         actions = el("div", { class: "task-actions" }, el("span", { class: "pill verified", text: "Verified" }));

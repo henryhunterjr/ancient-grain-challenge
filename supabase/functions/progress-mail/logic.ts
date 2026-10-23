@@ -10,7 +10,7 @@ export const LINK_DAYS = 7;
 export interface Row {
   entrant_id: string; email: string; first_name: string; is_test: boolean; lessons_done: number;
   next_key: string | null; next_title: string | null; quiz_passed: boolean; last_sent_at: string | null;
-  entries: number; next_points: number | null; open_bonus: { title: string; points: number }[] | null;
+  entries: number; next_points: number | null; open_bonus: { key?: string; title: string; points: number; link?: string; pass_mark?: number }[] | null;
 }
 // Henry's announcement graphic, already live on the challenge site.
 export const MIXER_IMAGE = ORIGIN + '/img/mixer-giveaway.jpg';
@@ -82,6 +82,10 @@ export function compose(r: Row, link: string, now: number, winners: Winner[] = [
     : '';
   const steps = ['Watch the video.', 'Leave a comment on it over on YouTube.', 'Take the quiz. 70% or better passes.',
     'Save your score and the YouTube name you commented under. Your points show up right away.'];
+  const quizBonuses = bonus.filter(b => ['b_dense','b_sprouted'].includes(b.key || ''));
+  const credit = `Watched a lesson on YouTube or social media already? You can still get credit. Take its quiz, choose "Record my challenge score," and sign in to the entry you already registered. Save your score and confirm the YouTube name you commented under. You do not need to register again. Watching alone does not automatically add points.`;
+  const bonusHeading = `Two optional quizzes now earn 20 points each, once. Each point adds another Bosch mixer entry. They do not replace any of the seven required lessons.`;
+  const bonusText = quizBonuses.length ? bonusHeading + '\n' + quizBonuses.map(b => `- ${b.title}: ${b.pass_mark}% to pass, ${b.points} points. ${b.link}`).join('\n') : '';
   const prize = finished ? '' : (draw ? `Every finished lesson also puts you in the next grain drawing on ${draw} for a 5 lb bag from Grand Teton Ancient Grains. ` : '')
     + 'Finish all seven and you qualify for the 25 lb grand prize on December 1.';
   const youtube = finished
@@ -99,7 +103,7 @@ export function compose(r: Row, link: string, now: number, winners: Winner[] = [
     `This link signs you in and takes you ${where}. No entry code needed:\n${link}`,
     finished ? bonusIntro + (bonus.length ? '\n' + bonus.map(b => `- ${b.title} (${b.points} points)`).join('\n') : '')
       : `Here's how a lesson counts:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`,
-    prize, youtube, keepComing, 'Henry Hunter\nCrust & Crumb Academy',
+    credit, bonusText, prize, youtube, keepComing, 'Henry Hunter\nCrust & Crumb Academy',
     w.length ? `${winnersHead}:\n${w.map(x => `- ${x.public_name}${x.grain ? ', ' + x.grain : ''}`).join('\n')}\n${winnersTail}` : '',
     `See your progress anytime: ${ORIGIN}/#me`, fine,
   ].filter(Boolean).join('\n\n');
@@ -118,6 +122,8 @@ ${finished
   ? p(bonusIntro) + (bonus.length ? `<ul style="padding-left:22px">${bonus.map(b => `<li>${esc(b.title)} <span style="color:#6b5a4a">(${b.points} points)</span></li>`).join('')}</ul>` : '')
   : `<p><strong>Here's how a lesson counts:</strong></p>\n<ol style="padding-left:22px">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`}
 ${prize ? p(prize) : ''}
+${p(credit)}
+${quizBonuses.length ? p(bonusHeading) + `<ul style="padding-left:22px">${quizBonuses.map(b => `<li><a href="${esc(b.link && b.link.startsWith(ORIGIN + '/') ? b.link : ORIGIN + '/#bonus-learning')}">${esc(b.title)}</a>: ${b.pass_mark}% to pass, ${b.points} points</li>`).join('')}</ul>` : ''}
 ${p(youtube)}
 ${p(keepComing)}
 <p>Henry Hunter<br>Crust &amp; Crumb Academy</p>

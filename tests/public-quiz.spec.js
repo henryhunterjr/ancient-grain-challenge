@@ -60,7 +60,7 @@ for(const width of [390,1440])for(const [key,quiz] of Object.entries(data))test(
   await page.getByText('Review your answers and teaching notes',{exact:true}).click();
   await expect(page.locator('.quiz-review>li')).toHaveCount(10);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  if(key==='bonus')await expect(page.getByRole('link',{name:'Record my challenge score'})).toHaveCount(0);
+  if(key==='bonus')await expect(page.getByRole('link',{name:'Record my challenge score'})).toHaveAttribute('href',`/record-score?quiz=${bonusId}&score=70&total=10`);
   else await expect(page.getByRole('link',{name:'Record my challenge score'})).toHaveAttribute('href',`/record-score?quiz=${lessons[key].quizId}&score=70&total=10`);
   expect(calls.some(c=>/record_|register|claim_task/.test(c.name))).toBe(false);
   expect(errors).toEqual([]);
