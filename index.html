@@ -519,7 +519,7 @@
           el("div", {}, t.category === "module" ? el("span", { class: "pill req", text: "Required" }) : null),
           el("h3", { text: t.title }),
           el("p", { class: "muted", text: AGC.taskDescription(t) }),
-          t.link ? el("a", { href: t.link === "https://skoo.ly/fresh-mill-recipes" ? "https://recipepantry.app/fresh-milled" : t.link, target: "_blank", rel: "noopener", text: "Find a recipe in the Recipe Pantry" }) : null),
+          t.link ? el("a", { href: t.link === "https://skoo.ly/fresh-mill-recipes" ? "https://recipepantry.app/fresh-milled" : t.link, target: "_blank", rel: "noopener", text: AGC.BONUS_QUIZZES[t.key] ? "Watch the lesson and take the quiz" : "Find a recipe in the Recipe Pantry" }) : null),
         el("div", { class: "task-pts", text: `${t.points} pts` }),
         actions);
     }));
