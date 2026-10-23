@@ -96,15 +96,17 @@ export async function handle(req: Request, d: Deps): Promise<Response> {
 
 export function emailContent(link: string) {
   const subject = 'Your Ancient Grain Challenge sign-in link';
+  const giveaway = "You're already entered in the December 1 drawing for a Bosch Universal Plus stand mixer from NutriMill. Every verified point adds another entry. The two optional bonus quizzes can earn 20 points each, once.";
   const text = 'Here is your sign-in link for the Ancient Grain Challenge:\n\n' + link +
     '\n\nTap it, then tap "Sign me in." It works once and expires in 60 minutes. Any quiz score you were saving comes with you.' +
-    '\n\nYour entry, points, and entry code stay the same. If you did not ask for this, ignore this email.\n\nHenry Hunter\nBaking Great Bread at Home';
+    '\n\nYour entry, points, and entry code stay the same. If you did not ask for this, ignore this email.\n\n' + giveaway + '\n\nHenry Hunter\nBaking Great Bread at Home';
   const safe = link.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#2b2118;line-height:1.5">
 <h2 style="margin:0 0 12px">Sign in to the Ancient Grain Challenge</h2>
 <p>Tap the button, then tap <strong>Sign me in</strong>. Any quiz score you were saving comes with you.</p>
 <p style="margin:24px 0"><a href="${safe}" style="background:#8a5a2b;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:bold">Sign me in</a></p>
 <p style="font-size:14px;color:#6b5a4a">This link works once and expires in 60 minutes. Your entry, points, and entry code stay the same. If you did not ask for this, ignore this email.</p>
+<p>${giveaway}</p>
 <p style="font-size:14px">Henry Hunter<br>Baking Great Bread at Home</p></div>`;
   return { subject, text, html };
 }

@@ -101,3 +101,16 @@ test('a winners lookup failure still sends the email', async () => {
   assert.equal((await L.handle(post({ action: 'send', key: 'good', expect: 1 }), d)).status, 200);
   assert.ok(!/grain winners/.test(d.batches[0][0].text));
 });
+
+test('every reminder explains social-media credit and links unfinished 20-point bonus quizzes',()=>{
+  const b=[{key:'b_dense',title:'Why Your Fresh-Milled Sourdough Is Dense',points:20,pass_mark:80,link:L.ORIGIN+'/quizzes/why-your-fresh-milled-sourdough-is-dense/'},
+    {key:'b_sprouted',title:'Waking Up the Berry Quiz',points:20,pass_mark:70,link:L.ORIGIN+'/quiz?quiz=waking-up-the-berry-quiz-wxp6iak2yanw'}];
+  for(const next_key of ['m3',null]){
+    const m=L.compose(row({next_key,open_bonus:b}),'L',NOW);
+    assert.match(m.text,/Bosch Universal Plus stand mixer/);
+    assert.match(m.text,/sign in to the entry you already registered/);
+    assert.match(m.text,/Watching alone does not automatically add points/);
+    assert.match(m.text,/80% to pass, 20 points/);assert.match(m.text,/70% to pass, 20 points/);
+    assert.ok(m.html.includes(b[0].link));assert.ok(m.html.includes(b[1].link));
+  }
+});

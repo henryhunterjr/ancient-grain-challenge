@@ -3,9 +3,10 @@
 const QuizHandoff = (() => {
   const KEY = 'agc_pending_quiz_v1', TTL = 7 * 24 * 60 * 60 * 1000;
   let memory = null, durable = true;
-  const quizzes = Object.fromEntries(Object.entries(AGC.LESSONS).map(([task,lesson]) => [lesson.quizId,task]));
+  const quizzes = Object.fromEntries(Object.entries(AGC.QUIZZES).map(([task,lesson]) => [lesson.quizId,task]));
   const titles = { m3: 'From Berries to Bread', m7: 'Rye Redefined', m1: 'Why Ancient Wheat Dough Feels Different',
-    m2: 'The Kneading Fallacy', m4: 'Which Wheat Berry Should You Use?', m6: 'Mastering Einkorn', m5: 'Ancient Grain Sourdough Starter' };
+    m2: 'The Kneading Fallacy', m4: 'Which Wheat Berry Should You Use?', m6: 'Mastering Einkorn', m5: 'Ancient Grain Sourdough Starter',
+    ...Object.fromEntries(Object.entries(AGC.BONUS_QUIZZES).map(([key,q])=>[key,q.title])) };
   function validate(quiz, score, total) {
     const percentage = AGC.quizPercentage(score);
     if (!Object.hasOwn(quizzes,quiz) || percentage === null || !/^[1-9][0-9]*$/.test(String(total)) || Number(total)>100) return null;

@@ -43,6 +43,12 @@ const AGC = (() => {
     m6: { videos: ["30SLfbm1fZk"], quizId: "mastering-einkorn-gs6exki0xyxbfxe", quiz: "/quiz?quiz=mastering-einkorn-gs6exki0xyxbfxe" },
     m5: { videos: ["gK2UtnJUxX8", "2d-3xPuWsQc"], quizId: "ancient-grain-sourdough-starter-jv6exlxjhxj67f", quiz: "/quiz?quiz=ancient-grain-sourdough-starter-jv6exlxjhxj67f" }
   };
+  // Bonus quizzes earn points without expanding the seven required lessons.
+  const BONUS_QUIZZES = {
+    b_dense: { title: 'Why Your Fresh-Milled Sourdough Is Dense', videos: ['A1RpHm8XvJ8'], quizId: 'why-your-fresh-milled-sourdough-is-xih6muguvxwc6', quiz: '/quizzes/why-your-fresh-milled-sourdough-is-dense/', passMark: 80, points: 20 },
+    b_sprouted: { title: 'Waking Up the Berry Quiz', videos: ['_2hW2qzV3nc'], quizId: 'waking-up-the-berry-quiz-wxp6iak2yanw', quiz: '/quiz?quiz=waking-up-the-berry-quiz-wxp6iak2yanw', passMark: 70, points: 20 }
+  };
+  const QUIZZES = { ...LESSONS, ...BONUS_QUIZZES };
   function videoBox(id, i) {
     const box = el("div", { class: "video" });
     const b = el("button", { type: "button", class: "video-play", "aria-label": "Play lesson video " + (i + 1) },
@@ -127,5 +133,5 @@ const AGC = (() => {
     });
     return form;
   }
-  return { rpc, store, el, LESSONS, videoBox, quizPercentage, lessonProof, taskDescription, codePanel, signin, emailSignIn };
+  return { rpc, store, el, LESSONS, BONUS_QUIZZES, QUIZZES, videoBox, quizPercentage, lessonProof, taskDescription, codePanel, signin, emailSignIn };
 })();
