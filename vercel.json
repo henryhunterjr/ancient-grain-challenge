@@ -66,5 +66,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/quizzes/why-your-fresh-milled-sourdough-is-dense/:path*",
+      "destination": "https://dense-sourdough-quiz.vercel.app/:path*"
+    }
   ]
 }
