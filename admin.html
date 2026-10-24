@@ -62,6 +62,36 @@
     </div>
   </section>
 
+  <section aria-labelledby="manual-credit-h">
+    <div class="wrap wide stack">
+      <h2 id="manual-credit-h">Manual bonus credit</h2>
+      <p class="muted">Use this only when a baker has already completed a bonus quiz and YouTube comment but the score did not record. This runs the same quiz-score and comment checks the baker would normally use, so the pass mark and one-time 20-point limit still apply.</p>
+      <div class="card stack">
+        <div class="grid2">
+          <label for="manual-entrant">Baker
+            <select id="manual-entrant"><option value="">Choose a baker</option></select>
+          </label>
+          <label for="manual-bonus">Bonus quiz
+            <select id="manual-bonus">
+              <option value="b_dense">Why Your Fresh-Milled Sourdough Is Dense · 80% to pass</option>
+              <option value="b_sprouted">Waking Up the Berry Quiz · 70% to pass</option>
+            </select>
+          </label>
+          <label for="manual-score">Verified score (%)
+            <input id="manual-score" type="number" min="0" max="100" step="1" value="100" inputmode="numeric">
+          </label>
+          <label for="manual-youtube">YouTube name used for the comment
+            <input id="manual-youtube" type="text" maxlength="120" autocomplete="off" placeholder="Exact YouTube display name">
+          </label>
+        </div>
+        <p id="manual-credit-status" class="msg" role="status" aria-live="polite"></p>
+        <div class="bar">
+          <button type="button" id="manual-credit-btn">Award verified bonus credit</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section>
     <div class="wrap wide stack">
       <h2 id="review-activities">Activities needing your review</h2>
@@ -276,8 +306,88 @@
   }
 
   function desk() { try { window.AGCWinners && AGCWinners.refresh({ key, data, tasks }); } catch {} }
-  async function refresh() { if (await load()) { render(); renderCodeResults(); desk(); } }
+  function renderManualCredit() {
+    const select = document.getElementById("manual-entrant");
+    if (!select || !data) return;
+    const current = select.value;
+    const entries = data.entrants.slice().sort((a,b) => a.full_name.localeCompare(b.full_name));
+    select.replaceChildren(el("option",{value:"",text:"Choose a baker"}),
+      ...entries.map(e => el("option",{value:e.id,text:e.full_name + " · " + e.email})));
+    if (entries.some(e => e.id === current)) select.value = current;
+  }
+
+  async function refresh() { if (await load()) { render(); renderCodeResults(); renderManualCredit(); desk(); } }
   document.getElementById("entrant-search").addEventListener("input", renderCodeResults);
+
+  document.getElementById("manual-credit-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("manual-credit-btn");
+    const msg = document.getElementById("manual-credit-status");
+    const entrantId = document.getElementById("manual-entrant").value;
+    const taskKey = document.getElementById("manual-bonus").value;
+    const score = Number(document.getElementById("manual-score").value);
+    const youtube = document.getElementById("manual-youtube").value.trim();
+    const entrant = data?.entrants.find(e => e.id === entrantId);
+    const bonus = AGC.BONUS_QUIZZES[taskKey];
+
+    msg.className = "msg";
+    if (!entrant || !entrant.entry_code) { msg.className = "msg err"; msg.textContent = "Choose a baker with a valid entry."; return; }
+    if (!bonus) { msg.className = "msg err"; msg.textContent = "Choose a valid bonus quiz."; return; }
+    if (!Number.isFinite(score) || score < bonus.passMark || score > 100) {
+      msg.className = "msg err"; msg.textContent = "Enter a verified passing score of " + bonus.passMark + "% or higher."; return;
+    }
+    if (!youtube || youtube.length > 120 || /[\r\n]/.test(youtube)) {
+      msg.className = "msg err"; msg.textContent = "Enter the exact YouTube name used for the comment."; return;
+    }
+
+    const existing = (entrant.claims || []).find(c => c.task_key === taskKey && c.status === "verified");
+    if (existing && !confirm(entrant.full_name + " already has verified credit for this bonus. Re-run the normal completion checks anyway? No extra points can be added.")) return;
+    if (!existing && !confirm("Award " + bonus.points + " verified bonus points to " + entrant.full_name + " for “" + bonus.title + "” using a verified score of " + score + "% and YouTube name “" + youtube + "”?")) return;
+
+    btn.disabled = true;
+    msg.textContent = "Recording the verified score…";
+    try {
+      const scoreResult = await rpc("record_quiz_score", {
+        p_token: entrant.entry_code,
+        p_quiz_id: bonus.quizId,
+        p_score: score,
+        p_total: 10
+      });
+      if (scoreResult?.error) throw new Error(scoreResult.error);
+      if (!scoreResult?.ok || !scoreResult?.passed) throw new Error("score");
+
+      msg.textContent = "Score recorded. Confirming the YouTube comment…";
+      const commentResult = await rpc("record_lesson_comment", {
+        p_token: entrant.entry_code,
+        p_task_key: taskKey,
+        p_youtube_name: youtube
+      });
+      if (commentResult?.error) throw new Error(commentResult.error);
+      if (!commentResult?.ok || !commentResult?.lesson_complete) throw new Error("completion");
+
+      await refresh();
+      const updated = data.entrants.find(e => e.id === entrantId);
+      const claim = (updated?.claims || []).find(c => c.task_key === taskKey && c.status === "verified");
+      msg.className = "msg ok";
+      msg.textContent = claim
+        ? bonus.points + " points awarded ✓. " + entrant.full_name + " now has verified credit for this bonus."
+        : "The completion was accepted, but the Host Desk did not show the verified claim after refresh. Check the entrant before trying again.";
+    } catch (err) {
+      msg.className = "msg err";
+      const copy = {
+        entrant: "That entry is no longer valid or has been removed.",
+        quiz: "The selected quiz is not registered with the challenge.",
+        score: "The score was not accepted. Check the percentage and try again.",
+        total: "The question total was not accepted.",
+        closed: "Challenge check-offs are closed.",
+        youtube_name: "The YouTube name was not accepted.",
+        score_required: "The score did not save before the comment step.",
+        completion: "The score/comment saved, but the lesson did not complete. Refresh and inspect the baker before trying again."
+      };
+      msg.textContent = copy[err.message] || "Manual credit did not complete. No extra points should be awarded. Refresh and check the baker before retrying.";
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   document.getElementById("login").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -285,7 +395,7 @@
     key = document.getElementById("key").value.trim(); m.className = "msg"; m.textContent = "Checking…";
     try {
       if (!(await load())) { m.className = "msg err"; m.textContent = "That passcode didn't work."; return; }
-      ss.set("agc_admin", key); m.textContent = ""; document.getElementById("login").hidden = true; document.getElementById("app").hidden = false; render(); renderCodeResults(); desk();
+      ss.set("agc_admin", key); m.textContent = ""; document.getElementById("login").hidden = true; document.getElementById("app").hidden = false; render(); renderCodeResults(); renderManualCredit(); desk();
     } catch { m.className = "msg err"; m.textContent = "Couldn't reach the server."; }
   });
   document.getElementById("refresh").onclick = refresh;
