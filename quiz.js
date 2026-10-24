@@ -63,7 +63,7 @@
     {
       // Use a normal same-origin link. No popup permission or third-party login.
       const params=new URLSearchParams({quiz:id,score:String(score),total:String(round.length)});
-      actions.append(el('a',{class:'btn-link',href:'/record-score?'+params,text:'Record my challenge score'}));
+      actions.append(el('a',{class:'btn-link',href:'/record-score?'+params,text:bonus && passed ? 'CLAIM YOUR 20 POINTS' : 'Record my challenge score'}));
     }
     actions.append(el('button',{type:'button',class:'ghost',onclick:start,text:'Retake quiz'}),el('a',{href:lessonURL,text:'Back to the lesson'}));
     const review=el('ol',{class:'quiz-review'});
@@ -71,8 +71,11 @@
       ...(!a.right?[el('p',{text:'Correct answer: '+a.question.answer})]:[]),el('p',{class:'muted',text:a.question.note})));
     body.replaceChildren(heading(passed?'You passed.':'Keep learning. Try again.'),el('p',{class:'quiz-score',text:score+'%'}),
       el('p',{text:`${correct} of ${round.length} correct · 70% to pass`}),
-      el('p',{class:'muted',text:bonus?'Save your score and confirm your YouTube comment to earn 20 bonus points once. Already registered? Sign in to your existing entry after choosing “Record my challenge score.”':
-        'Your result is ready. Use “Record my challenge score” to save it to your entry. Lesson completion also requires your YouTube comment details before it earns points. Retakes cannot lower your saved best score.'}),
+      el('p',{class:bonus && passed ? 'msg' : 'muted',text:bonus
+        ? (passed
+          ? 'Your quiz is passed, but your challenge points have not been recorded yet. Claim your points, save this score to your entry, then confirm your YouTube comment.'
+          : 'You need 70% or better to earn this 20-point bonus. You can save this score, review the teaching notes, and retake the quiz.')
+        : 'Your result is ready. Use “Record my challenge score” to save it to your entry. Lesson completion also requires your YouTube comment details before it earns points. Retakes cannot lower your saved best score.'}),
       actions,el('details',{},el('summary',{text:'Review your answers and teaching notes'}),review));
     focusHeading();
   }
