@@ -53,8 +53,11 @@
       box.replaceChildren(message('No pending result. It may have been saved, cleared, or expired after seven days.'),
         el('a',{href:'/#lessons',text:'Take or retake a lesson quiz'})); return;
     }
+    const pendingBonus = BONUS_QUIZZES[pending.task];
     box.replaceChildren(el('h2',{text:`${pending.score}% · ${H.titles[pending.task]}`}),
-      el('p',{text:`${pending.total} questions. This result is waiting to be saved to your entry.`}),
+      el('p',{class:pendingBonus ? 'msg' : '',text:pendingBonus
+        ? 'Quiz passed/result received. Your challenge points are not recorded until you save this score to your entry and confirm your YouTube comment.'
+        : `${pending.total} questions. This result is waiting to be saved to your entry.`}),
       el('p',{class:'muted',text:`Kept on this browser until ${new Date(pending.expires).toLocaleString()}. Return to this page after signup or closing it. Only public quiz data is kept with this pending result.`}),
       ...(!H.durable() ? [message('Browser storage is unavailable. Keep this page open; closing or leaving it may lose this pending result.')] : []),
       el('button',{type:'button',class:'ghost small',onclick:()=>cancel(pending.id)},'Cancel and clear pending score'));
@@ -101,9 +104,11 @@
   function saved(r,token,gen) {
     const bonus = BONUS_QUIZZES[r.task_key], passMark = bonus?.passMark || 70;
     box.replaceChildren(el('h2',{text:`Score saved: ${r.best_score}%`}),
-      message(r.lesson_complete ? 'This lesson is complete. Your existing progress and points are updated.' :
-        r.passed ? 'Your passing score is saved. This lesson still needs your YouTube comment details before it earns lesson points.' :
-        `Your score is saved. Retake the quiz for ${passMark}% or better. Lesson points also require your YouTube comment details.`),
+      message(r.lesson_complete
+        ? (bonus ? '20 points awarded ✓. This bonus is complete and your challenge total is updated.' : 'This lesson is complete. Your existing progress and points are updated.')
+        : r.passed
+          ? (bonus ? 'Score recorded ✓ — YouTube comment confirmation pending. Your 20 points will be awarded after that final confirmation.' : 'Your passing score is saved. This lesson still needs your YouTube comment details before it earns lesson points.')
+          : `Your score is saved. Retake the quiz for ${passMark}% or better. Lesson points also require your YouTube comment details.`),
       ...(bonus ? [el('p',{text:'This optional bonus earns 20 points once. Every point adds one entry in the Bosch Universal Plus stand mixer drawing. The original seven lessons remain the requirement for the final grain prizes.'})] : []),
       el('p',{class:'muted',text:`Browser-reported. Best score retained; retakes cannot lower it. Server received: ${new Date(r.received_at).toLocaleString()}.`}),
       el('a',{class:'btn-link',href:bonus ? bonus.quiz : `/lesson?m=${r.task_key}`,text:bonus ? 'Return to the bonus quiz' : 'Go to this lesson'}),
@@ -125,8 +130,9 @@
         const response = await rpc('record_lesson_comment',{p_token:token,p_task_key:r.task_key,p_youtube_name:name.value.trim()});
         if (gen!==generation || store.get('agc_token')!==token) { render(); return; }
         if (response.error || response.ok!==true) throw new Error(response.error || 'confirmation');
-        msg.textContent=response.lesson_complete ? 'Comment details saved. Lesson complete; your progress and points are updated.' :
-          `Comment details saved. Retake the quiz for ${passMark}% or better to complete this lesson.`;
+        msg.textContent=response.lesson_complete
+          ? (bonus ? 'YouTube comment confirmed ✓ — 20 points awarded. Your challenge total is updated.' : 'Comment details saved. Lesson complete; your progress and points are updated.')
+          : `Comment details saved. Retake the quiz for ${passMark}% or better to complete this lesson.`;
       } catch(e) { msg.textContent=errorCopy[e.message] || 'Could not confirm comment details. Try again.'; btn.disabled=false; }
     }); box.append(form);
   }
