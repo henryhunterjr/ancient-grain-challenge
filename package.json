@@ -23,6 +23,7 @@
   "homepage": "https://github.com/henryhunterjr/ancient-grain-challenge#readme",
   "description": "",
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@playwright/test": "1.56.1"
   }
 }

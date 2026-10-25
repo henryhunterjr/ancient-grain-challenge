@@ -192,21 +192,30 @@ ${next ? `<p>${html(next)}</p>` : ""}
   // ---------- nudges ----------
   function nudgeEmail(e) {
     const next = nextLesson(e); const n = e.modules_verified || 0; const draw = longDay(nextDrawDate());
-    const subject = n === 0 ? "Your first lesson takes 15 minutes, and it puts you in Friday's drawing" : `You're ${7 - n} lesson${7 - n === 1 ? "" : "s"} from the grand prize drawing`;
+    const subject = !next ? "Your next bake after From Berries to Bread" : n === 0 ? "Your first Ancient Grain lesson is ready" : `You're ${7 - n} lesson${7 - n === 1 ? "" : "s"} from the grand prize drawing`;
     const opener = n === 0
-      ? `You registered for the Ancient Grain Challenge but haven't started a lesson yet. No problem. We just drew this week's winners, and I'd like to see your name in the next one.`
-      : `We just drew this week's Ancient Grain Challenge winners, and I want you in the next one. You've finished ${n} of the seven lessons.`;
-    const lessonPart = next ? `Your next lesson is ${next.title}. It runs about 15 minutes, and passing the quiz puts you in the drawing on ${draw} for a 5 lb bag of grain:
-${lessonUrl(next)}` : `You've finished every lesson, so you're already in every drawing that's left.`;
+      ? `You registered for the Ancient Grain Challenge but haven't started a lesson yet. No problem. I'd like to see you take the next step this week.`
+      : `Here’s your Ancient Grain Challenge progress this week. You've finished ${n} of the seven lessons.`;
+    const lessonPart = next ? `Your next lesson is ${next.title}. Watch it, pass the quiz, and record your YouTube comment name for credit toward the drawing on ${draw} for a 5 lb bag of grain:
+${lessonUrl(next)}` : `You've finished all seven lessons and qualified for the December 1 grain grand prize. Put that learning into a bake and share it with us.`;
+    const saved = mailed.get(e.id);
+    const scoreNote = saved?.next_score == null ? '' : `Best recorded score for ${next?.title || 'your next lesson'}: ${saved.next_score}%.\n\n`;
+    const completedNote = (saved?.completed_lessons || []).map(x => x.title + (x.score == null ? '' : ` (${x.score}%)`)).join('; ');
+    const member = AGCOutreach.status(e);
+    const invite = member === 'member' ? "Bring your questions into the Academy. We're baking alongside you.\nhttps://skoo.ly/crust-crumb-academy"
+      : member === 'unmatched' ? "If you haven't joined Crust & Crumb Academy yet, come bake with us. You'll find bakers working through the same questions.\nhttps://skoo.ly/crust-crumb-academy"
+      : "Need a hand with the next bake? You'll find us inside Crust & Crumb Academy.\nhttps://skoo.ly/crust-crumb-academy";
     const body = `Hi ${first(e.full_name)},
 
 ${opener}
 
 ${lessonPart}
 
-Finish all seven and you qualify for the 25 lb grand prize on December 1. Your entry and points are here anytime: ${SITE}/#me
+${scoreNote}${completedNote ? 'Completed: ' + completedNote + '.\n\n' : ''}Finish all seven and you qualify for the 25 lb grand prize on December 1. Your entry and points are here anytime: ${SITE}/#me
 
-See you Friday.${SIGNATURE}`;
+You've earned ${e.verified_points || 0} verified points, giving you ${1 + (e.verified_points || 0)} mixer entries.
+
+${invite}${SIGNATURE}`;
     return { subject, body };
   }
   function blastText(label, list) {
@@ -218,7 +227,7 @@ Hi bakers,
 
 We just drew the ${label} winners in the Ancient Grain Challenge: ${names}. Each one gets a 5 lb bag of grain from Grand Teton Ancient Grains.
 
-If your name wasn't called, here's the thing. Most of you who registered haven't finished a lesson yet, and one finished lesson is all it takes to be in Friday's drawing on ${next}. The lessons are 15 minutes each. Watch one, pass the quiz, and you're in.
+If your name wasn't called, here's the thing. One finished lesson is all it takes to be in Friday's drawing on ${next}. Watch one, pass its quiz, and record the YouTube name you commented under to claim credit.
 
 Pick up where you left off: ${SITE}/#me
 Start with From Berries to Bread: ${SITE}/#lessons
@@ -377,7 +386,12 @@ Henry`;
     $("nudge-tiles").replaceChildren(...[["Registered, no lessons", counts["0"]], ["1 to 3 lessons", counts["1-3"]], ["4 to 6 lessons", counts["4-6"]], ["All 7 done", counts.done]]
       .map(([l, n]) => el("div", { class: "tile" }, el("b", { text: String(n) }), el("span", { class: "muted", text: l }))));
     const filter = $("nudge-filter").value;
-    const list = E.filter(e => filter === "all" ? e.modules_verified < 7 : band(e) === filter).sort((a, b) => lastActivity(a).localeCompare(lastActivity(b)));
+    const query = $('nudge-search').value.trim().toLowerCase();
+    const memberFilter = $('nudge-membership').value;
+    const list = E.filter(e => (filter === "all" ? e.modules_verified < 7 : band(e) === filter)
+      && (!query || (e.full_name + ' ' + e.email).toLowerCase().includes(query))
+      && (memberFilter === 'all' || AGCOutreach.status(e) === memberFilter)).sort((a, b) => lastActivity(a).localeCompare(lastActivity(b)));
+    $("nudge-total").textContent = `(${E.length})`;
     $("nudge-count").textContent = `${list.length} baker${list.length === 1 ? "" : "s"}`;
     const bcc = list.map(e => e.email).join(",");
     $("nudge-bcc").onclick = async () => { try { await navigator.clipboard.writeText(bcc); $("nudge-bcc").textContent = "Copied"; setTimeout(() => $("nudge-bcc").textContent = "Copy all emails", 1500); } catch {} };
@@ -386,14 +400,15 @@ Henry`;
       const next = nextLesson(e); const m = nudgeEmail(e);
       return el("tr", {},
         el("td", {}, el("strong", { text: e.full_name }), el("br"), el("small", { text: e.email })),
+        el("td", { text: AGCCampaign.membershipLabel(AGCOutreach.status(e)) }),
         el("td", { class: "num", text: `${e.modules_verified}/7` }),
         el("td", { text: next ? next.title : "All done" }),
         el("td", { text: fmt(lastActivity(e)) }),
         el("td", { class: "muted", text: mailed.get(e.id)?.last_sent_at ? fmt(mailed.get(e.id).last_sent_at) : "" }),
         el("td", {}, el("a", { class: "btn-link ghost-link", style: "padding:6px 12px;font-size:.85rem", href: compose(e.email, m.subject, m.body), target: "_blank", rel: "noopener", text: "Open nudge in Gmail" }), " ", copyBtn(emailText(e.email, m.subject, m.body), "Copy")));
     }));
-    const grainWinners = winners.filter(w => !isMixer(w));
-    const thisWeek = grainWinners.filter(w => w.status !== "forfeited" && weekOf(w) === weekOf(grainWinners[0] || { drawn_at: new Date() }));
+    const thisWeek = AGCCampaign.latestWinners(winners);
+    const grainWinners = thisWeek;
     const blast = $("nudge-blast"); blast.value = blastText(weekOf(grainWinners[0] || { drawn_at: new Date() }), thisWeek);
   }
 
@@ -422,6 +437,19 @@ Henry`;
   function wireProgressMail() {
     const test = $("pm-test"), send = $("pm-send"), msg = $("pm-msg");
     if (!test) return;
+    $('pm-samples').onclick = async () => {
+      $('pm-samples').disabled = true;
+      try {
+        const r = await pm('samples'); if (!r.ok || !Array.isArray(r.data.samples)) throw Error('samples');
+        $('pm-samples-list').replaceChildren(...r.data.samples.map(s => {
+          const frame = el('iframe', { title: 'Email preview for ' + s.first_name, sandbox: '', style: 'width:100%;height:600px;border:0' });
+          frame.srcdoc = s.html;
+          return el('details', {}, el('summary', { text: s.subject + ' · ' + AGCCampaign.membershipLabel(s.membership_status) }), frame);
+        }));
+        msg.textContent = r.data.samples.length + ' message variants ready to review. No emails sent. Preview buttons go to the entry page; sent messages get a private sign-in link.';
+      } catch { msg.textContent = 'Message preview is unavailable. The updated sender must be deployed first.'; }
+      $('pm-samples').disabled = false;
+    };
     test.onclick = async () => {
       test.disabled = true; msg.textContent = "Sending your preview…";
       const r = await pm("test");
@@ -444,6 +472,8 @@ Henry`;
     const r = await rpc("admin_winners", { p_key: ctx.key });
     if (r.error) return;
     winners = r;
+    $("winner-total").textContent = `(${winners.length})`;
+    await AGCOutreach.refresh({ ...ctx, winners });
     renderWinners(); renderPartner(); renderAnnounce(); renderNudges();
   }
 
@@ -453,6 +483,8 @@ Henry`;
     $("win-week").onchange = renderWinners;
     $("ann-week").onchange = renderAnnounce;
     $("nudge-filter").onchange = renderNudges;
+    $("nudge-membership").onchange = renderNudges;
+    $("nudge-search").oninput = renderNudges;
     wireProgressMail(); pmPreview();
     $("partner-email").value = ls.get("agc_partner_email") || "";
     const partnerKey = () => $("partner-kind").value === "mixer" ? "agc_nutrimill_email" : "agc_partner_email";
@@ -474,5 +506,5 @@ Henry`;
     const dl = $("draw-label"); if (dl && !dl.value) dl.value = labelFor(new Date());
     await load();
   }
-  return { refresh, labelFor, publicName, announcement, nudgeEmail, winnerEmail, partnerCsv };
+  return { refresh, labelFor, publicName, announcement, nudgeEmail, winnerEmail, partnerCsv, renderNudges };
 })();
