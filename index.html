@@ -390,6 +390,9 @@
           el("select", { id: "r-mill", name: "mill" },
             el("option", { value: "", text: "Choose one" }),
             el("option", { text: "Yes, I have a mill" }), el("option", { text: "Not yet, but I want to" }), el("option", { text: "No, I buy flour" })))),
+      el("label", { for: "r-heard" }, "How did you first hear about this challenge? (optional)",
+        el("select", { id: "r-heard" }, el("option", { value: "", text: "Choose one" }),
+          ...["Academy", "Facebook", "YouTube", "Instagram", "TikTok", "Newsletter", "Partner", "Friend", "Search", "Other"].map(x => el("option", { value: x, text: x })))),
       el("label", { for: "r-exp" }, "How long have you been baking bread?",
         el("select", { id: "r-exp", name: "exp" },
           el("option", { value: "", text: "Choose one" }), el("option", { text: "Just getting started" }), el("option", { text: "1 to 3 years" }), el("option", { text: "3 to 10 years" }), el("option", { text: "More than 10 years" }))),
@@ -418,6 +421,12 @@
         }
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.token || '')) throw Error('confirmation');
         issuedCode = r.token; store.set(TOKEN_KEY, r.token);
+        // Optional attribution must never prevent an otherwise successful registration.
+        const params = new URLSearchParams(location.search);
+        const source = Object.fromEntries(['utm_source','utm_medium','utm_campaign'].map(k => [k, (params.get(k) || '').slice(0,160)]));
+        source.heard_from = v('r-heard');
+        rpc('record_entry_source', { p_token: r.token, p_source: source }).catch(() => {});
+
         renderSavedCode('Your entry was created. Save your code now while we load your progress.');
         await renderAll();
         document.getElementById("me").scrollIntoView({ behavior: "smooth" });
