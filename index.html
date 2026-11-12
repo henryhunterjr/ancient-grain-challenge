@@ -254,6 +254,7 @@
 
 <script src="shared.js"></script>
 <script src="quiz-handoff.js"></script>
+<script src="score-history.js"></script>
 <script>
 (() => {
   const { rpc, store, el } = AGC;
@@ -361,8 +362,10 @@
           : p.modules_verified >= 1
             ? "You've completed at least one lesson and qualify for weekly Friday draws if you haven't already won a 5 lb bag. Finish all seven for the December 1 prizes."
             : "Complete one lesson for weekly Friday draws. Complete all seven for the final two 5 lb bags and the grand prize on December 1." })),
+      el("div", { id: "score-history", class: "stack" }),
       el("div", {}, el("button", { class: "ghost small", type: "button", onclick: () => { store.del(TOKEN_KEY); progress = null; progressCode = null; issuedCode = null; renderAll(); } }, "Not you? Sign out on this device"))
     ));
+    AGCScoreHistory.render(progressCode, document.getElementById("score-history"));
   }
 
   function renderRegister() {
