@@ -31,6 +31,13 @@ test('preview counts', async () => {
   const b = await r.json(); assert.equal(b.eligible, 1); assert.equal(b.recently_emailed, 1); assert.equal(b.rows.length, 2);
   assert.ok(!JSON.stringify(b).includes('baker@example.com'));
 });
+test('in-desk message review does not issue sign-in links, send mail, or log contact',async()=>{
+ const d=deps([row({membership_status:'member',next_score:90}),row({lessons_done:0,membership_status:'unmatched'})]);
+ const response=await L.handle(post({action:'samples',key:'good'}),d);
+ const body=await response.json();assert.equal(body.samples.length,2);
+ assert.ok(body.samples.every(m=>m.html&&m.subject&&!m.text.includes('recover-entry#')));
+ assert.equal(d.issued.length,0);assert.equal(d.batches.length,0);assert.equal(d.logs.length,0);
+});
 test('send requires the previewed count, issues 7-day links, logs, batches', async () => {
   const rows = [row(), row({ lessons_done: 0, next_key: 'm3', next_title: 'From Berries to Bread' })];
   const d = deps(rows);
@@ -65,8 +72,8 @@ test('copy variants, no em dashes, next drawing date', () => {
 
 test('mixer paragraph credits Henry, counts entries, shows the graphic', () => {
   const m = L.compose(row({ lessons_done: 0, entries: 1, next_title: 'From Berries to Bread' }), 'L', NOW);
-  assert.match(m.text, /I've decided to also give away a Bosch Universal Plus stand mixer from NutriMill/);
-  assert.match(m.text, /one entry just for registering/); assert.match(m.text, /Finishing From Berries to Bread adds 20 more/);
+  assert.match(m.text, /I'm giving away a Bosch Universal Plus stand mixer from NutriMill/);
+  assert.match(m.text, /one for registering/); assert.match(m.text, /Finishing From Berries to Bread adds 20 more/);
   assert.ok(m.html.includes('<img src="' + L.MIXER_IMAGE + '"')); assert.ok(!/NutriMill is giving|from NutriMill is giving/.test(m.text));
 });
 test('finished bakers get a thank-you, bonus list, and a link to their entry', async () => {
@@ -76,25 +83,30 @@ test('finished bakers get a thank-you, bonus list, and a link to their entry', a
   assert.equal(m.subject, "Ana, you're in the Bosch mixer drawing with 141 entries");
   assert.match(m.text, /finished all seven lessons, so you're also in the drawing for the 25 lb grand prize/); assert.match(m.text, /- Bake along with us on a Saturday \(10 points\)/);
   assert.ok(!/Here's how a lesson counts|Finishing/.test(m.text)); assert.match(m.html, />See my entry</);
-  const none = L.compose({ ...done, open_bonus: [] }, 'L', NOW); assert.match(none.text, /every bonus activity too/);
+  const none = L.compose({ ...done, open_bonus: [] }, 'L', NOW); assert.match(none.text, /anything awaiting review/);
   const d = deps([done]);
   await L.handle(post({ action: 'send', key: 'good', expect: 1 }), d);
   assert.match(d.batches[0][0].text, /recover-entry#r=R{43}&auto=1\n/); assert.deepEqual(d.logs[0][1], 'finished');
 });
 
-test('thank-you comes before the mixer reveal, then YouTube, sign-off, and winners', async () => {
-  const d = deps([row()]);
-  await L.handle(post({ action: 'send', key: 'good', expect: 1 }), d);
-  const t = d.batches[0][0].text, h = d.batches[0][0].html;
-  const order = ["I'm Henry Hunter, founder", "something to mix it in", 'Big news:', 'Next up is', 'hit like and subscribe', 'I read every one', 'Henry Hunter\nCrust', "This week's grain winners (drawn Friday, October 16)", 'Your grain ships soon'];
-  let at = -1; for (const k of order) { const i = t.indexOf(k); assert.ok(i > at, k); at = i; }
-  assert.match(t, /- Angela S\., Hard White Wheat\n- Noah T\., Khorasan/);
-  assert.ok(h.indexOf('something to mix it in') < h.indexOf('<img')); assert.ok(h.indexOf('<img') < h.indexOf('Big news'));
-  assert.ok(!/\u2014/.test(t + h)); assert.ok(!/extra points/.test(t));
-  assert.match(t, /You're already in the running for the grain/);
-  const fresh = L.compose(row({ lessons_done: 0, entries: 1 }), 'L', NOW);
-  assert.match(fresh.text, /Every lesson you finish puts you in the running for grain/);
-  const none = L.compose(row(), 'L', NOW, []); assert.ok(!/grain winners/.test(none.text));
+test('weekly reminder rotates, uses latest winners, and personalizes real progress and membership', () => {
+  const input = row({next_score:90, completed_lessons:[{title:'Rye Redefined',score:80}], membership_status:'member'});
+  const winners = [{public_name:'Old W.',grain:'Spelt',drawn_on:'2026-10-16'}, {public_name:'Current W.',grain:'Rye',drawn_on:'2026-10-23'}];
+  const a=L.compose(input,'L',NOW,winners), b=L.compose(input,'L',NOW+7*864e5,winners);
+  assert.notEqual(a.text.split('\n\n')[1],b.text.split('\n\n')[1]);
+  assert.match(a.text,/Rye Redefined \(80%\)/); assert.match(a.text,/best recorded score.*90%/);
+  assert.match(a.text,/Latest grain winners \(drawn Friday, October 23\)/);
+  assert.match(a.text,/Current W/); assert.ok(!a.text.includes('Old W.'));
+  assert.match(a.text,/already part of our kitchen table/);
+  assert.ok(!/Big news:|I've decided|I'm Henry Hunter, founder|Your grain ships soon/.test(a.text));
+  assert.match(L.compose({...input,membership_status:'unmatched'},'L',NOW).text,/If you haven't joined/);
+  assert.ok(!L.compose({...input,membership_status:'unknown'},'L',NOW).text.includes("already part of"));
+});
+test('weekly editorial copy expires, unsafe links are omitted, and HTML escapes data',()=>{
+ const r=row({first_name:'<script>',campaign:{week_start:'2026-10-19',intro:'Fresh week <b>',recipe_title:'My loaf',recipe_url:'https://recipepantry.app/recipes/loaf',bake_url:'javascript:alert(1)'}});
+ const fresh=L.compose(r,'L',NOW); assert.match(fresh.text,/Fresh week/); assert.match(fresh.html,/&lt;script&gt;/);
+ assert.ok(fresh.html.includes(r.campaign.recipe_url));assert.ok(!fresh.html.includes('javascript:'));
+ const old=L.compose(r,'L',NOW+8*864e5);assert.ok(!old.text.includes('Fresh week'));assert.ok(!old.html.includes(r.campaign.recipe_url));
 });
 test('a winners lookup failure still sends the email', async () => {
   const d = deps([row()], { winners: async () => { throw new Error('db'); } });
@@ -113,4 +125,10 @@ test('every reminder explains social-media credit and links unfinished 20-point 
     assert.match(m.text,/80% to pass, 20 points/);assert.match(m.text,/70% to pass, 20 points/);
     assert.ok(m.html.includes(b[0].link));assert.ok(m.html.includes(b[1].link));
   }
+});
+
+test('earlier bag winners are not promised another 5 lb prize',()=>{
+ const mail=L.compose(row({grain_won:true}),'L',NOW);
+ assert.match(mail.text,/out of the remaining 5 lb drawings/);assert.match(mail.text,/25 lb grand prize/);
+ assert.ok(!mail.text.includes('Every finished lesson also puts you in the next grain drawing'));
 });

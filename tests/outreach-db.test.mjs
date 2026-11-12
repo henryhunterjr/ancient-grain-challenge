@@ -1,0 +1,41 @@
+// Real PostgreSQL semantics in disposable WASM storage. No network or production data.
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+test('outreach migration: guarded writes, exact membership, scores, and first-touch attribution',async()=>{
+ const db=new PGlite();
+ await db.exec(`create role anon; create role authenticated;create schema agc_entry_recovery;
+ create table public.entrants(id uuid primary key,token uuid,disqualified boolean);
+ create table public.tasks(key text primary key,title text,category text,active boolean,sort int);
+ create table public.claims(entrant_id uuid,task_key text,status text);
+ create table public.draws(id uuid,entrant_id uuid,kind text);
+ create table public.winner_fulfillment(draw_id uuid,status text);
+ create table public.quiz_results(entrant_id uuid,task_key text,best_score numeric);
+ create function public._is_admin(text) returns boolean language sql as $$select $1='good'$$;
+ create function agc_entry_recovery.progress_mail_list_v2() returns table(entrant_id uuid,email text,first_name text,is_test boolean,lessons_done int,next_key text,next_title text,quiz_passed boolean,last_sent_at timestamptz,entries int,next_points int,open_bonus jsonb)
+ language sql as $$select '11111111-1111-4111-8111-111111111111'::uuid,'ana@example.com'::text,'Ana'::text,false,1,'m2'::text,'Next'::text,true,null::timestamptz,21,20,'[]'::jsonb$$;
+ insert into public.entrants values('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222',false);
+ insert into public.tasks values('m1','First','module',true,1),('m2','Next','module',true,2);
+ insert into public.claims values('11111111-1111-4111-8111-111111111111','m1','verified');
+ insert into public.quiz_results values('11111111-1111-4111-8111-111111111111','m1',80),('11111111-1111-4111-8111-111111111111','m2',90);`);
+ await db.exec(await readFile(new URL('../supabase/migrations/20261025053221_weekly_outreach.sql',import.meta.url),'utf8'));
+ const call=async(sql,params=[]) => (await db.query(sql,params)).rows[0].result;
+ assert.equal((await call("select public.admin_outreach_get('bad') result")).error,'denied');
+ const snapshot=await call("select public.admin_outreach_save('good',$1::jsonb) result",[JSON.stringify({roster:{emails:['ANA@example.com','ana@example.com']}})]);
+ assert.deepEqual(snapshot.roster.emails,['ana@example.com']);
+ let rows=(await db.query('select * from agc_entry_recovery.progress_mail_list_v3()')).rows;
+ assert.equal(rows[0].membership_status,'member');assert.equal(Number(rows[0].next_score),90);
+ assert.deepEqual(rows[0].completed_lessons,[{title:'First',score:80}]);
+ const failed=await call("select public.admin_outreach_save('good',$1::jsonb) result",[JSON.stringify({roster:{emails:['other@example.com']},campaign:{week_start:'2026-99-99'}})]);
+ assert.equal(failed.error,'date');assert.deepEqual((await call("select public.admin_outreach_get('good') result")).roster.emails,['ana@example.com']);
+ await db.exec("update agc_entry_recovery.outreach_settings set value=jsonb_set(value,'{roster,imported_at}',to_jsonb((now()-interval '15 days')::text))");
+ assert.equal((await db.query('select membership_status from agc_entry_recovery.progress_mail_list_v3()')).rows[0].membership_status,'unknown');
+ await db.exec('set role anon');
+ assert.equal((await call("select public.admin_outreach_save('bad','{}') result")).error,'denied');
+ await assert.rejects(db.query('select * from agc_entry_recovery.outreach_settings'));
+ assert.equal((await call("select public.record_entry_source('22222222-2222-4222-8222-222222222222','{\"heard_from\":\"YouTube\"}') result")).ok,true);
+ await call("select public.record_entry_source('22222222-2222-4222-8222-222222222222','{\"heard_from\":\"Facebook\"}') result");
+ await db.exec('reset role');
+ const saved=(await db.query('select source from agc_entry_recovery.entry_sources')).rows[0].source;
+ assert.equal(saved.heard_from,'YouTube');
+ await db.close();
+});

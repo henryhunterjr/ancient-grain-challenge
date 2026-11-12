@@ -80,6 +80,8 @@ test('admin desk: winner card, labels, notify, partner list, announcement, nudge
   await page.goto('/admin');
   await page.fill('#key', 'local-only');
   await page.click('#login button[type=submit]');
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('details.roster').evaluateAll(nodes=>nodes.forEach(n=>n.open=true));
   await expect(page.locator('#win-list')).toContainText('Winnie Baker');
   await expect(page.locator('#win-list')).toContainText('Needs notice');
   await expect(page.locator('#win-list .code')).toHaveValue(`https://challenge.bakinggreatbread.com/claim?c=${TOKEN}`);
@@ -182,6 +184,8 @@ test('newsletter escapes winner fields and CSV neutralizes formulas', async ({ p
   await page.goto('/admin');
   await page.fill('#key', 'local-only');
   await page.click('#login button[type=submit]');
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('details.roster').evaluateAll(nodes=>nodes.forEach(n=>n.open=true));
   await expect(page.locator('#win-list')).toContainText('Winnie Baker');
   const result = await page.evaluate(() => {
     const hostile = '<img/src=x/onerror=alert(1)>';
@@ -206,6 +210,8 @@ test('mixer draw uses its own kind and prize after explicit confirmation', async
   await page.goto('/admin');
   await page.fill('#key', 'local-only');
   await page.click('#login button[type=submit]');
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('details.roster').evaluateAll(nodes=>nodes.forEach(n=>n.open=true));
   await expect(page.locator('#win-list')).toContainText('Winnie Baker');
   await page.selectOption('#draw-kind', 'mixer');
   await page.route('**/rpc/admin_draw', route => {
@@ -227,6 +233,8 @@ test('mixer fulfillment routes only its winner to NutriMill and uses mixer messa
   await page.goto('/admin');
   await page.fill('#key', 'local-only');
   await page.click('#login button[type=submit]');
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('details.roster').evaluateAll(nodes=>nodes.forEach(n=>n.open=true));
   const card = page.locator('#win-list .winner', { hasText: 'Mixer Baker' });
   const notice = decodeURIComponent(await card.getByRole('link', { name: 'Open winner email in Gmail' }).getAttribute('href'));
   expect(notice).toContain('Bosch Universal Plus');
@@ -315,6 +323,8 @@ test('next-lesson emails: preview, two-tap send, emailed column', async ({ page 
   await page.goto('/admin');
   await page.fill('#key', 'local-only');
   await page.click('#login button[type=submit]');
+  await expect(page.locator('#app')).toBeVisible();
+  await page.locator('details.roster').evaluateAll(nodes=>nodes.forEach(n=>n.open=true));
   const send = page.locator('#pm-send');
   await expect(send).toHaveText('Email 3 bakers');
   await page.click('#pm-test');
@@ -327,5 +337,5 @@ test('next-lesson emails: preview, two-tap send, emailed column', async ({ page 
   await expect(send).toHaveText('Everyone is up to date');
   await expect(send).toBeDisabled();
   expect(calls.find(c => c.body?.action === 'send').body).toEqual({ action: 'send', key: 'local-only', expect: 3 });
-  await expect(page.locator('#nudge-rows tr').first().locator('td').nth(4)).not.toHaveText('');
+  await expect(page.locator('#nudge-rows tr').first().locator('td').nth(5)).not.toHaveText('');
 });

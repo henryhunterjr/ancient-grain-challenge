@@ -10,6 +10,10 @@ export const LINK_DAYS = 7;
 export interface Row {
   entrant_id: string; email: string; first_name: string; is_test: boolean; lessons_done: number;
   next_key: string | null; next_title: string | null; quiz_passed: boolean; last_sent_at: string | null;
+  grain_won?: boolean;
+  membership_status?: 'member' | 'unmatched' | 'unknown'; next_score?: number | null;
+  completed_lessons?: { title: string; score: number | null }[];
+  campaign?: { week_start?: string; intro?: string; recipe_title?: string; recipe_url?: string; bake_title?: string; bake_url?: string };
   entries: number; next_points: number | null; open_bonus: { key?: string; title: string; points: number; link?: string; pass_mark?: number }[] | null;
 }
 // Henry's announcement graphic, already live on the challenge site.
@@ -60,33 +64,48 @@ export function compose(r: Row, link: string, now: number, winners: Winner[] = [
     : r.lessons_done === 0 ? `${name}, you're in the Bosch mixer drawing. Your first lesson is ready`
     : r.next_points ? `${name}, your next lesson adds ${r.next_points} mixer entries`
     : `${name}, your next lesson is ${r.next_title}`;
-  const thanks = `I'm Henry Hunter, founder of the Crust & Crumb Academy, and I want to thank you for being part of the Ancient Grain Challenge. `
-    + `The response to this series has gone way past what I expected, and I'm glad so many of you are getting real value out of it. That's the whole point: to help you become a better baker.`;
-  const setup = `You've shown up for this, so I wanted to give something back. `
-    + (r.lessons_done > 0 ? `You're already in the running for the grain.` : `Every lesson you finish puts you in the running for grain.`)
-    + ` Now I'm giving you something to mix it in.`;
-  const mixer = `Big news: I've decided to also give away a Bosch Universal Plus stand mixer from NutriMill. You're already entered. `
-    + (entries === 1 ? `You got one entry just for registering, and every point you earn adds another.`
-      : `You got one entry for registering, and every point you've earned counts as another, so right now you have ${entriesText}.`)
-    + (!finished && r.next_points ? ` Finishing ${r.next_title} adds ${r.next_points} more.` : '')
-    + ` I'll draw the winner live in the Academy on Tuesday, December 1.`;
+  const campaign = r.campaign || {};
+  const weekStart = Date.parse((campaign.week_start || '') + 'T12:00:00Z');
+  const weekEnd = Number.isFinite(weekStart) ? new Date(weekStart + 7 * 864e5).toISOString().slice(0, 10) : '';
+  const fresh = !!weekEnd && ymd(now) >= campaign.week_start! && ymd(now) < weekEnd;
+  const week = Math.floor((Date.parse(ymd(now) + 'T12:00:00Z') - Date.parse('2026-10-12T12:00:00Z')) / (7 * 864e5));
+  const openings = r.lessons_done === 0
+    ? ["Your place in From Berries to Bread is still here. Let's get your first lesson on the board.", "Ready to get started? One lesson is a good place to begin this week.", "You don't have to tackle the whole series at once. Start with the lesson below."]
+    : finished
+    ? ["You finished the full series. This week, put that learning into a bake.", "All seven lessons are behind you. I'd love to see what you make with what you've learned.", "Thanks for staying with From Berries to Bread. There's still time to put those lessons to work."]
+    : ["Let's keep your From Berries to Bread progress moving this week.", "You've already made a start. Here's the next step from where you left off.", "One more lesson, then back to the dough. Here's where you are this week."];
+  const thanks = openings[((week % openings.length) + openings.length) % openings.length];
+  const setup = fresh && campaign.intro ? campaign.intro : '';
+  const mixer = `A reminder: I'm giving away a Bosch Universal Plus stand mixer from NutriMill on December 1. You currently have ${entriesText}, one for registering plus your verified points.`
+    + (!finished && r.next_points ? ` Finishing ${r.next_title} adds ${r.next_points} more.` : '');
+  const completed = (r.completed_lessons || []).filter(x => x.title);
+  const completedLine = completed.length ? `Your completed lessons: ${completed.map(x => x.title + (x.score == null ? '' : ` (${x.score}%)`)).join('; ')}.` : '';
+  const scoreLine = r.next_score == null ? '' : `Your best recorded score for ${r.next_title}: ${r.next_score}%.`;
+  const member = r.membership_status || 'unknown';
+  const community = member === 'member' ? "Bring your questions and your next loaf into the Academy. You're already part of our kitchen table."
+    : member === 'unmatched' ? "If you haven't joined Crust & Crumb Academy yet, come bake with us. You'll find people working through the same questions."
+    : "Want some company for the next bake? Come find us inside Crust & Crumb Academy.";
+  const recommendations = fresh ? [
+    campaign.recipe_url && /^https:\/\//.test(campaign.recipe_url) ? { title: campaign.recipe_title || 'Try this week’s recipe', url: campaign.recipe_url } : null,
+    campaign.bake_url && /^https:\/\//.test(campaign.bake_url) ? { title: campaign.bake_title || 'Join our bake-along', url: campaign.bake_url } : null
+  ].filter((x): x is { title: string; url: string } => !!x) : [];
   const status = finished
     ? `You finished all seven lessons, so you're also in the drawing for the 25 lb grand prize. Thank you for going the distance.`
     : r.quiz_passed
     ? `You passed the ${r.next_title} quiz, but the lesson isn't credited yet. The missing piece is your YouTube comment. Leave a comment on the video, then add the YouTube name you commented under. That's it.`
     : r.lessons_done === 0
-    ? `You haven't finished a lesson yet. Your first one is ${r.next_title}, and it takes about 15 minutes.`
+    ? `You haven't finished a lesson yet. Your first one is ${r.next_title}, and you can start when you have a little time.`
     : `You've finished ${r.lessons_done} of the 7 lessons. Next up is ${r.next_title}.`;
   const bonusIntro = finished
-    ? (bonus.length ? `Want more mixer entries? These bonus activities are still open for you, and every point is another entry:` : `You've done every bonus activity too, so you're all set. I'll see you December 1.`)
+    ? (bonus.length ? `Want more mixer entries? These bonus activities are still open for you, and every point is another entry:` : `No unclaimed bonus activities are listed right now. You can check your entry for anything awaiting review.`)
     : '';
   const steps = ['Watch the video.', 'Leave a comment on it over on YouTube.', 'Take the quiz. 70% or better passes.',
     'Save your score and the YouTube name you commented under. Your points show up right away.'];
   const quizBonuses = bonus.filter(b => ['b_dense','b_sprouted'].includes(b.key || ''));
   const credit = `Watched a lesson on YouTube or social media already? You can still get credit. Take its quiz, choose "Record my challenge score," and sign in to the entry you already registered. Save your score and confirm the YouTube name you commented under. You do not need to register again. Watching alone does not automatically add points.`;
-  const bonusHeading = `Two optional quizzes now earn 20 points each, once. Each point adds another Bosch mixer entry. They do not replace any of the seven required lessons.`;
+  const bonusHeading = `These optional quizzes earn their listed points once. Each point adds another Bosch mixer entry. They do not replace any of the seven required lessons.`;
   const bonusText = quizBonuses.length ? bonusHeading + '\n' + quizBonuses.map(b => `- ${b.title}: ${b.pass_mark}% to pass, ${b.points} points. ${b.link}`).join('\n') : '';
-  const prize = finished ? '' : (draw ? `Every finished lesson also puts you in the next grain drawing on ${draw} for a 5 lb bag from Grand Teton Ancient Grains. ` : '')
+  const prize = finished ? '' : r.grain_won ? "You've already won a 5 lb bag, so you're out of the remaining 5 lb drawings. Finish all seven lessons to qualify for the 25 lb grand prize on December 1." : (draw ? `Every finished lesson also puts you in the next grain drawing on ${draw} for a 5 lb bag from Grand Teton Ancient Grains. ` : '')
     + 'Finish all seven and you qualify for the 25 lb grand prize on December 1.';
   const youtube = finished
     ? `If you haven't already, hit like and subscribe on YouTube, and leave a comment on the videos.`
@@ -96,19 +115,21 @@ export function compose(r: Row, link: string, now: number, winners: Winner[] = [
   const where = finished ? 'to your entry' : 'straight to the lesson';
   const fine = `Your sign-in link is just for you and works for ${LINK_DAYS} days, on your phone or computer. After that, tap "Email me a sign-in link" on any lesson page.`;
   const w = winners.filter(x => x && x.public_name);
-  const winnersHead = w.length ? `This week's grain winners (drawn ${day(w[0].drawn_on)})` : '';
-  const winnersTail = 'Congratulations, bakers. Your grain ships soon.';
+  const latestDate = w.map(x => x.drawn_on.slice(0, 10)).sort().at(-1);
+  const recentWinners = w.filter(x => x.drawn_on.slice(0, 10) === latestDate);
+  const winnersHead = recentWinners.length ? `Latest grain winners (drawn ${day(recentWinners[0].drawn_on)})` : '';
+  const winnersTail = 'Congratulations, bakers. Winners, check your email for your prize details.';
   const text = [
-    `Hi ${name},`, thanks, setup, mixer, status,
+    `Hi ${name},`, thanks, setup, mixer, status, completedLine, scoreLine,
     `This link signs you in and takes you ${where}. No entry code needed:\n${link}`,
     finished ? bonusIntro + (bonus.length ? '\n' + bonus.map(b => `- ${b.title} (${b.points} points)`).join('\n') : '')
       : `Here's how a lesson counts:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`,
-    credit, bonusText, prize, youtube, keepComing, 'Henry Hunter\nCrust & Crumb Academy',
-    w.length ? `${winnersHead}:\n${w.map(x => `- ${x.public_name}${x.grain ? ', ' + x.grain : ''}`).join('\n')}\n${winnersTail}` : '',
+    credit, bonusText, prize, youtube, keepComing, community + '\nhttps://skoo.ly/crust-crumb-academy', ...recommendations.map(x => x.title + ': ' + x.url), 'Henry Hunter\nCrust & Crumb Academy',
+    recentWinners.length ? `${winnersHead}:\n${recentWinners.map(x => `- ${x.public_name}${x.grain ? ', ' + x.grain : ''}`).join('\n')}\n${winnersTail}` : '',
     `See your progress anytime: ${ORIGIN}/#me`, fine,
   ].filter(Boolean).join('\n\n');
   const p = (t: string, style = '') => `<p${style ? ` style="${style}"` : ''}>${esc(t)}</p>`;
-  const bigNews = `<p><strong>Big news:</strong> ${esc(mixer.slice('Big news: '.length))}</p>`;
+  const bigNews = p(mixer);
   const html = `<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;color:#2b2118;line-height:1.55;font-size:16px">
 <p>Hi ${esc(name)},</p>
 ${p(thanks)}
@@ -116,6 +137,8 @@ ${p(setup)}
 <a href="${esc(link)}" style="display:block;margin:18px 0 8px"><img src="${MIXER_IMAGE}" width="560" alt="I'm giving away a Bosch Universal Plus stand mixer from NutriMill in the Ancient Grain Challenge" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:8px"></a>
 ${bigNews}
 ${p(status)}
+${completedLine ? p(completedLine) : ''}
+${scoreLine ? p(scoreLine) : ''}
 <p style="margin:26px 0"><a href="${esc(link)}" style="background:#8a5a2b;color:#fff;padding:13px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">${esc(button)}</a></p>
 ${p('One tap signs you in. No entry code needed.', 'font-size:14px;color:#6b5a4a;margin-top:-10px')}
 ${finished
@@ -126,9 +149,12 @@ ${p(credit)}
 ${quizBonuses.length ? p(bonusHeading) + `<ul style="padding-left:22px">${quizBonuses.map(b => `<li><a href="${esc(b.link && b.link.startsWith(ORIGIN + '/') ? b.link : ORIGIN + '/#bonus-learning')}">${esc(b.title)}</a>: ${b.pass_mark}% to pass, ${b.points} points</li>`).join('')}</ul>` : ''}
 ${p(youtube)}
 ${p(keepComing)}
+${p(community)}
+<p><a href="https://skoo.ly/crust-crumb-academy">${member === 'member' ? 'Visit the Academy' : 'Come bake with us'}</a></p>
+${recommendations.map(x => `<p><a href="${esc(x.url)}">${esc(x.title)}</a></p>`).join('')}
 <p>Henry Hunter<br>Crust &amp; Crumb Academy</p>
-${w.length ? `<div style="border-top:1px solid #e4d8c8;margin-top:22px;padding-top:14px"><p style="margin:0 0 6px"><strong>${esc(winnersHead)}</strong></p>
-<ul style="padding-left:22px;margin:0 0 8px">${w.map(x => `<li>${esc(x.public_name)}${x.grain ? `, ${esc(x.grain)}` : ''}</li>`).join('')}</ul>${p(winnersTail, 'margin:0')}</div>` : ''}
+${recentWinners.length ? `<div style="border-top:1px solid #e4d8c8;margin-top:22px;padding-top:14px"><p style="margin:0 0 6px"><strong>${esc(winnersHead)}</strong></p>
+<ul style="padding-left:22px;margin:0 0 8px">${recentWinners.map(x => `<li>${esc(x.public_name)}${x.grain ? `, ${esc(x.grain)}` : ''}</li>`).join('')}</ul>${p(winnersTail, 'margin:0')}</div>` : ''}
 <p style="margin-top:22px"><a href="${ORIGIN}/#me" style="color:#8a5a2b">See your progress anytime</a></p>
 ${p(fine, 'font-size:13px;color:#6b5a4a')}
 </div>`;
@@ -167,11 +193,24 @@ export async function handle(req: Request, d: Deps): Promise<Response> {
     const rows = await d.list();
     const now = d.now();
     const ready = eligible(rows, now);
+    if (body.action === 'samples') {
+      const winners = await d.winners();
+      // Review real variants without issuing credentials, sending, or changing history.
+      const chosen = ['unknown','member','unmatched'].flatMap(status => {
+        const group = rows.filter(r => !r.is_test && (r.membership_status || 'unknown') === status);
+        return [group.find(r => r.lessons_done === 0), group.find(r => r.quiz_passed && r.next_key),
+          group.find(r => r.lessons_done > 0 && r.next_key && !r.quiz_passed), group.find(r => !r.next_key)].filter((r): r is Row => !!r);
+      });
+      return reply(200, { samples: [...new Map(chosen.map(r => [r.entrant_id, r])).values()].map(r => ({
+        first_name: r.first_name, membership_status: r.membership_status || 'unknown',
+        ...compose(r, ORIGIN + '/#me', now, winners),
+      })) });
+    }
     if (body.action === 'preview') {
       return reply(200, {
         eligible: ready.length,
         recently_emailed: rows.filter(r => !r.is_test && !TEST_EMAILS.includes(r.email) && !ready.includes(r)).length,
-        rows: rows.filter(r => !r.is_test).map(r => ({ entrant_id: r.entrant_id, last_sent_at: r.last_sent_at, quiz_passed: r.quiz_passed })),
+        rows: rows.filter(r => !r.is_test).map(r => ({ entrant_id: r.entrant_id, last_sent_at: r.last_sent_at, quiz_passed: r.quiz_passed, next_score: r.next_score, completed_lessons: r.completed_lessons })),
         gap_days: RESEND_GAP_DAYS,
       });
     }
