@@ -20,9 +20,10 @@ async function fixture(page,token=false) {
     return route.fulfill({json:result});
   });return calls;
 }
-async function attempt(page,bank,right=10) {
+async function attempt(page,bank,right=10,autoClose=false) {
   await page.getByRole('button',{name:'Start quiz'}).click();
   for(let i=0;i<10;i++) {
+    await expect(page.getByText(`Question ${i+1} of 10`,{exact:true})).toBeVisible();
     const prompt=await page.locator('legend').innerText(),q=bank.find(q=>q.prompt===prompt);
     expect(q).toBeTruthy();
     const answer=i<right?q.answer:q.choices.find(c=>c!==q.answer);
@@ -30,6 +31,12 @@ async function attempt(page,bank,right=10) {
     await page.getByRole('button',{name:'Check answer'}).click();
     await expect(page.locator('input:enabled')).toHaveCount(0);
     await page.getByRole('button',{name:i===9?'See my results':'Next question',exact:true}).click();
+    if(i===4) {
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await expect.poll(()=>page.getByRole('dialog').locator('img').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+      if(autoClose)await expect(page.getByRole('dialog')).toHaveCount(0,{timeout:10000});
+      else await page.getByRole('button',{name:'Back to quiz',exact:true}).click();
+    }
   }
 }
 test('all banks have valid unique questions, original IDs and unchanged videos',()=>{
@@ -54,13 +61,15 @@ for(const width of [390,1440])for(const [key,quiz] of Object.entries(data))test(
   }
   await expect(page.getByRole('heading',{name:quiz.title,exact:true})).toBeVisible();
   const url=page.url();expect(url).toContain('/quiz?quiz=');expect(url).not.toContain('muse.ai');
+  await expect(page.getByText(/Score 70% or better to pass/)).toBeVisible();
   await attempt(page,quiz.questions,7);
   await expect(page.getByRole('heading',{name:'You passed.',exact:true})).toBeVisible();
   await expect(page.locator('.quiz-score')).toHaveText('70%');
+  await expect(page.getByRole('link',{name:'Back to the Challenge'})).toHaveAttribute('href','https://skoo.ly/grain-challenge');
   await page.getByText('Review your answers and teaching notes',{exact:true}).click();
   await expect(page.locator('.quiz-review>li')).toHaveCount(10);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  if(key==='bonus')await expect(page.getByRole('link',{name:'Record my challenge score'})).toHaveAttribute('href',`/record-score?quiz=${bonusId}&score=70&total=10`);
+  if(key==='bonus')await expect(page.getByRole('link',{name:'CLAIM YOUR 20 POINTS'})).toHaveAttribute('href',`/record-score?quiz=${bonusId}&score=70&total=10`);
   else await expect(page.getByRole('link',{name:'Record my challenge score'})).toHaveAttribute('href',`/record-score?quiz=${lessons[key].quizId}&score=70&total=10`);
   expect(calls.some(c=>/record_|register|claim_task/.test(c.name))).toBe(false);
   expect(errors).toEqual([]);
@@ -95,4 +104,11 @@ test('guest result survives free registration link and keyboard-only quiz contro
   await page.getByRole('link',{name:'Register, or sign in with your entry code'}).click();
   await expect(page.getByRole('link',{name:'return to record your score'})).toBeVisible();
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('agc_pending_quiz_v1')).score)).toBe(100);
+});
+
+test('sponsor break automatically resumes after eight seconds',async({page})=>{
+  await fixture(page);
+  await page.goto(lessons.m3.quiz);
+  await attempt(page,data.m3.questions,10,true);
+  await expect(page.locator('.quiz-score')).toHaveText('100%');
 });
