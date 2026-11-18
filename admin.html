@@ -22,6 +22,7 @@
   textarea { font-family: var(--body); }
   textarea[readonly] { font-size: .9rem; }
   .bar > label { flex: 1 1 200px; }
+  .desk-list > summary { cursor: pointer; padding: 10px 0; font-weight: 700; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -104,10 +105,12 @@
     <div class="wrap wide stack">
       <h2>All entrants</h2>
       <p class="muted">This is your roster. Registrations do not need your approval. In progress means the baker is still working through the lessons. Counted points are already included in their entries.</p>
+      <details class="desk-list"><summary>Registered bakers (<span id="roster-count">0</span>)</summary>
       <div class="table-wrap"><table>
         <thead><tr><th>Baker</th><th>Joining from</th><th>Where</th><th>Modules</th><th class="num">Counted points</th><th class="num">Points awaiting review</th><th>Status</th></tr></thead>
         <tbody id="entrants"></tbody>
       </table></div>
+      </details>
     </div>
   </section>
 
@@ -132,11 +135,13 @@
       <h2>Winners and prizes</h2>
       <p class="muted">Every draw lands here with its own private claim link. The order each week: open the winner email and send it, mark notified, wait for the address (the link does the asking), send grain winners to Grand Teton and the mixer winner to NutriMill using separate shipment lists, then mark shipped when the partner confirms. Nothing here changes the draw itself.</p>
       <div class="tiles" id="win-tiles"></div>
+      <details class="desk-list"><summary>Prize recipients and shipping details</summary>
       <div class="bar">
         <label for="win-week">Show <select id="win-week"></select></label>
         <button type="button" id="win-fix-labels" class="ghost small" hidden style="align-self:end"></button>
       </div>
       <div id="win-list" class="stack"></div>
+      </details>
     </div>
   </section>
 
@@ -250,6 +255,7 @@
   }
 
   function render() {
+    document.getElementById("roster-count").textContent = data.entrants.length;
     const E = data.entrants; const oldT = document.getElementById("grain-tally"); if (oldT) oldT.remove();
     const qualified = E.filter(e => !e.disqualified && !e.is_test && e.modules_total > 0 && e.modules_verified >= e.modules_total);
     const pending = E.flatMap(e => e.claims.filter(c => c.status === "pending").map(c => ({ ...c, e })));
