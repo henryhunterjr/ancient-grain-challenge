@@ -474,5 +474,5 @@ Henry`;
     const dl = $("draw-label"); if (dl && !dl.value) dl.value = labelFor(new Date());
     await load();
   }
-  return { refresh, labelFor, publicName, announcement, nudgeEmail, winnerEmail, partnerCsv };
+  return { refresh, fridays: DRAW_DATES.slice(), labelFor, publicName, announcement, nudgeEmail, winnerEmail, partnerCsv };
 })();

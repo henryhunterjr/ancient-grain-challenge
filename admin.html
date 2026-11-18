@@ -120,7 +120,8 @@
       <p class="muted"><strong>Friday draw:</strong> everyone who has finished at least one lesson and hasn't already won a 5 lb bag is in the pool. Draw four each Friday, October 16 through November 27. <strong>December 1:</strong> use the final 5 lb bag option twice, then the grand prize option. Both grain options require all seven lessons. Then use the mixer option once: every registered baker has one entry plus their verified points, with no lesson required. Winning grain does not affect mixer eligibility. A baker can win one 5 lb bag across all dates; earlier 5 lb winners remain eligible for the grand prize. Explicitly flagged test entries and removed entries are excluded from every pool. For grain, each verified point is one entry. Every draw is saved and can't be undone. Winners show on the public page right away, first name and last initial only.</p>
       <div class="bar">
         <label for="draw-kind" style="flex:1 1 200px">Drawing <select id="draw-kind"><option value="weekly">Friday draw: 5 lb bag</option><option value="final_small">December 1: final 5 lb bag (all seven lessons)</option><option value="grand">Grand prize: 25 lb bag</option><option value="mixer">December 1: Bosch Universal Plus mixer (all registered bakers)</option></select></label>
-        <label for="draw-label" style="flex:1 1 200px">Label <input id="draw-label" placeholder="Week 1 · Oct 16"></label>
+        <label id="friday-control" for="draw-friday">Scheduled Friday <select id="draw-friday"></select></label>
+        <label for="draw-label" hidden style="flex:1 1 200px">Label <input id="draw-label" placeholder="Week 1 · Oct 16"></label>
         <button type="button" id="draw-arm" style="align-self:end">Draw a winner</button>
         <button type="button" id="draw-go" hidden style="align-self:end">Yes, draw now</button>
         <button type="button" id="draw-cancel" class="ghost" hidden style="align-self:end">Cancel</button>
@@ -416,8 +417,25 @@
   };
 
   const arm = document.getElementById("draw-arm"), go = document.getElementById("draw-go"), cancel = document.getElementById("draw-cancel"), dmsg = document.getElementById("draw-msg");
-  arm.onclick = () => { arm.hidden = true; go.hidden = false; cancel.hidden = false; dmsg.className = "msg"; dmsg.textContent = "This saves a winner for good. Draw now?"; };
+  const kindSelect = document.getElementById("draw-kind");
+  const friday = document.getElementById("draw-friday");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+  for (const date of AGCWinners.fridays.filter(date => date <= today)) {
+    const label = AGCWinners.labelFor(date + "T12:00:00-05:00");
+    friday.append(el("option", { value: date, text: label }));
+    friday.value = date;
+  }
+  function showDrawControls() {
+    const weekly = kindSelect.value === "weekly";
+    document.getElementById("friday-control").hidden = !weekly;
+    document.getElementById("draw-label").parentElement.hidden = weekly;
+    arm.disabled = weekly && !friday.value;
+  }
+  showDrawControls();
+  arm.onclick = () => { arm.hidden = true; go.hidden = false; cancel.hidden = false; dmsg.className = "msg"; dmsg.textContent = kindSelect.value === "weekly" ? "Draw one winner for " + friday.selectedOptions[0].text + "? Only points verified by that Friday count." : "This saves a winner for good. Draw now?"; };
   cancel.onclick = () => { arm.hidden = false; go.hidden = true; cancel.hidden = true; dmsg.textContent = ""; };
+  kindSelect.onchange = () => { cancel.onclick(); showDrawControls(); };
+  friday.onchange = () => cancel.onclick();
   go.onclick = async () => {
     go.disabled = true;
     try {
@@ -425,7 +443,9 @@
       const typed = document.getElementById("draw-label").value.trim();
       const label = kind === "mixer" ? "Mixer · Dec 1" : typed || (window.AGCWinners ? AGCWinners.labelFor(new Date()) : null);
       const prize = kind === "mixer" ? "Bosch Universal Plus stand mixer" : kind === "grand" ? "Grand prize: 25 lb bag" : "5 lb bag";
-      const r = await rpc("admin_draw", { p_key: key, p_prize: prize, p_kind: kind, p_label: label });
+      const r = kind === "weekly"
+        ? await rpc("admin_draw_friday", { p_key: key, p_friday: friday.value })
+        : await rpc("admin_draw", { p_key: key, p_prize: prize, p_kind: kind, p_label: label });
       if (r.error === "empty") { dmsg.className = "msg err"; dmsg.textContent = kind === "weekly" ? "No eligible bakers left for a Friday draw." : "No qualified bakers left in the pool."; }
       else if (r.error === "prize_limit") { dmsg.className = "msg err"; dmsg.textContent = "All prizes for this drawing type have already been drawn."; }
       else if (r.error) throw 0;
